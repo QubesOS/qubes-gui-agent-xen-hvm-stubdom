@@ -19,101 +19,12 @@
 #
 #
 
-RPMS_DIR=rpm/
 VERSION := $(shell cat version)
-
-DIST_DOM0 ?= fc13
 
 help:
 	@echo "Qubes GUI main Makefile:" ;\
-	    echo "make rpms                 <--- make all rpms and sign them";\
-	    echo "make rpms-dom0            <--- create binary rpms for dom0"; \
-	    echo "make rpms-vm              <--- create binary rpms for appvm"; \
-	    echo; \
 	    echo "make clean                <--- clean all the binary files";\
-	    echo "make update-repo-current  <-- copy newly generated rpms to qubes yum repo";\
-	    echo "make update-repo-current-testing <-- same, but for -current-testing repo";\
-	    echo "make update-repo-unstable <-- same, but to -testing repo";\
-	    echo "make update-repo-installer -- copy dom0 rpms to installer repo"
 	    @exit 0;
 
-dom0: gui-daemon/qubes-guid shmoverride/shmoverride.so shmoverride/X-wrapper-qubes pulse/pacat-simple-vchan
-
-appvm: gui-agent/qubes-gui xf86-input-mfndev/src/.libs/qubes_drv.so pulse/module-vchan-sink.so relaxed-xf86ValidateModes/relaxed-xf86ValidateModes.so
-
-gui-daemon/qubes-guid:
-	(cd gui-daemon; $(MAKE))
-
-shmoverride/shmoverride.so:
-	(cd shmoverride; $(MAKE) shmoverride.so)
-
-shmoverride/X-wrapper-qubes:
-	(cd shmoverride; $(MAKE) X-wrapper-qubes)
-	
-pulse/pacat-simple-vchan:
-	$(MAKE) -C pulse pacat-simple-vchan
-
-relaxed-xf86ValidateModes/relaxed-xf86ValidateModes.so:
-	(cd relaxed-xf86ValidateModes; $(MAKE))
-	
-gui-agent/qubes-gui:
-	(cd gui-agent; $(MAKE))
-
-xf86-input-mfndev/src/.libs/qubes_drv.so:
-	(cd xf86-input-mfndev && ./bootstrap && ./configure && make LDFLAGS=-lu2mfn)
-
-pulse/module-vchan-sink.so:
-	$(MAKE) -C pulse module-vchan-sink.so
-
-rpms: rpms-dom0 rpms-vm
-	rpm --addsign rpm/x86_64/*$(VERSION)*.rpm
-	(if [ -d rpm/i686 ] ; then rpm --addsign rpm/i686/*$(VERSION)*.rpm; fi)
-
-rpms-vm:
-	rpmbuild --define "_rpmdir rpm/" -bb rpm_spec/gui-vm.spec
-
-rpms-dom0:
-	rpmbuild --define "_rpmdir rpm/" -bb rpm_spec/gui-dom0.spec
-
-tar:
-	git archive --format=tar --prefix=qubes-gui/ HEAD -o qubes-gui.tar
-
 clean:
-	(cd common; $(MAKE) clean)
-	(cd gui-agent; $(MAKE) clean)
 	(cd gui-common; $(MAKE) clean)
-	(cd gui-daemon; $(MAKE) clean)
-	(cd shmoverride; $(MAKE) clean)
-	$(MAKE) -C pulse clean
-	(cd xf86-input-mfndev; if [ -e Makefile ] ; then $(MAKE) distclean; fi; ./bootstrap --clean || echo )
-	$(MAKE) -C relaxed-xf86ValidateModes clean
-
-update-repo-current:
-	ln -f $(RPMS_DIR)/x86_64/qubes-gui-dom0-*$(VERSION)*$(DIST_DOM0)*.rpm ../yum/current-release/current/dom0/rpm/
-	for vmrepo in ../yum/current-release/current/vm/* ; do \
-		dist=$$(basename $$vmrepo) ;\
-		ln -f $(RPMS_DIR)/x86_64/qubes-*-vm-*$(VERSION)*$$dist*.rpm $$vmrepo/rpm/ ;\
-	done
-
-update-repo-current-testing:
-	ln -f $(RPMS_DIR)/x86_64/qubes-gui-dom0-*$(VERSION)*$(DIST_DOM0)*.rpm ../yum/current-release/current-testing/dom0/rpm/
-	for vmrepo in ../yum/current-release/current-testing/vm/* ; do \
-		dist=$$(basename $$vmrepo) ;\
-		ln -f $(RPMS_DIR)/x86_64/qubes-*-vm-*$(VERSION)*$$dist*.rpm $$vmrepo/rpm/ ;\
-	done
-
-update-repo-unstable:
-	ln -f $(RPMS_DIR)/x86_64/qubes-gui-dom0-*$(VERSION)*$(DIST_DOM0)*.rpm ../yum/current-release/unstable/dom0/rpm/
-	for vmrepo in ../yum/current-release/unstable/vm/* ; do \
-		dist=$$(basename $$vmrepo) ;\
-		ln -f $(RPMS_DIR)/x86_64/qubes-*-vm-*$(VERSION)*$$dist*.rpm $$vmrepo/rpm/ ;\
-	done
-
-update-repo-template:
-	for vmrepo in ../template-builder/yum_repo_qubes/* ; do \
-		dist=$$(basename $$vmrepo) ;\
-		ln -f $(RPMS_DIR)/x86_64/qubes-*-vm-*$(VERSION)*$$dist*.rpm $$vmrepo/rpm/ ;\
-	done
-
-update-repo-installer:
-	ln -f $(RPMS_DIR)/x86_64/qubes-gui-dom0-*$(VERSION)*$(DIST_DOM0)*.rpm ../installer/yum/qubes-dom0/rpm/

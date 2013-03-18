@@ -15,11 +15,9 @@
 #include <sysemu.h>
 
 #include <qubes-gui-qemu.h>
-#include <messages.h>
-#include <shm-cmd.h>
+#include <qubes-gui-protocol.h>
 #include <libvchan.h>
 #include <txrx.h>
-#include <qlimits.h>
 
 #define QUBES_GUI_PROTOCOL_VERSION_STUBDOM (1 << 16 | 0)
 
