@@ -421,7 +421,7 @@ void handle_keymap_notify(QubesGuiState * qs)
 	}
 }
 
-void send_protocol_version()
+void send_protocol_version(void)
 {
 	uint32_t version = QUBES_GUID_PROTOCOL_VERSION;
 	write_struct(version);
