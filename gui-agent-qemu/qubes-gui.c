@@ -22,6 +22,7 @@
 #define QUBES_GUI_PROTOCOL_VERSION_STUBDOM (1 << 16 | 0)
 
 struct QubesGuiState *qs;
+libvchan_t *vchan;
 
 #define min(x,y) ((x)>(y)?(y):(x))
 #define QUBES_MAIN_WINDOW 1
@@ -93,7 +94,7 @@ void process_pv_update(QubesGuiState * qs,
 	mx.y = y;
 	mx.width = width;
 	mx.height = height;
-	write_message(hdr, mx);
+	write_message(vchan, hdr, mx);
 }
 
 
@@ -112,7 +113,7 @@ void qubes_create_window(QubesGuiState * qs, int w, int h)
 	crt.x = 0;
 	crt.y = 0;
 	crt.override_redirect = 0;
-	write_message(hdr, crt);
+	write_message(vchan, hdr, crt);
 }
 
 void send_pixmap_mfns(QubesGuiState * qs)
@@ -178,9 +179,9 @@ void send_pixmap_mfns(QubesGuiState * qs)
 	shmcmd.num_mfn = n;
 	shmcmd.off = offset;
 	shmcmd.bpp = bpp;
-	write_struct(hdr);
-	write_struct(shmcmd);
-	write_data((char *) mfns, n * sizeof(*mfns));
+	write_struct(vchan, hdr);
+	write_struct(vchan, shmcmd);
+	write_data(vchan, (char *) mfns, n * sizeof(*mfns));
 	free(mfns);
 }
 
@@ -191,7 +192,7 @@ void send_wmname(QubesGuiState * qs, const char *wmname)
 	strncpy(msg.data, wmname, sizeof(msg.data));
 	hdr.window = QUBES_MAIN_WINDOW;
 	hdr.type = MSG_WMNAME;
-	write_message(hdr, msg);
+	write_message(vchan, hdr, msg);
 }
 
 void send_wmhints(QubesGuiState * qs)
@@ -207,7 +208,7 @@ void send_wmhints(QubesGuiState * qs)
 	msg.max_height = ds_get_height(qs->ds);
 	hdr.window = QUBES_MAIN_WINDOW;
 	hdr.type = MSG_WINDOW_HINTS;
-	write_message(hdr, msg);
+	write_message(vchan, hdr, msg);
 }
 
 void send_map(QubesGuiState * qs)
@@ -219,7 +220,7 @@ void send_map(QubesGuiState * qs)
 	map_info.transient_for = 0;
 	hdr.type = MSG_MAP;
 	hdr.window = QUBES_MAIN_WINDOW;
-	write_message(hdr, map_info);
+	write_message(vchan, hdr, map_info);
 }
 
 void process_pv_resize(QubesGuiState * qs, int width, int height,
@@ -237,7 +238,7 @@ void process_pv_resize(QubesGuiState * qs, int width, int height,
 	conf.width = width;
 	conf.height = height;
 	conf.override_redirect = 0;
-	write_message(hdr, conf);
+	write_message(vchan, hdr, conf);
 	send_pixmap_mfns(qs);
 	send_wmhints(qs);
 }
@@ -245,7 +246,7 @@ void process_pv_resize(QubesGuiState * qs, int width, int height,
 void handle_configure(QubesGuiState * qs)
 {
 	struct msg_configure r;
-	read_data((char *) &r, sizeof(r));
+	read_data(vchan, (char *) &r, sizeof(r));
 	fprintf(stderr,
 		"configure msg, x/y %d %d (was %d %d), w/h %d %d\n",
 		r.x, r.y, qs->x, qs->y, r.width, r.height);
@@ -264,8 +265,8 @@ void send_clipboard_data(char *data, int len)
 	else
 		hdr.window = len;
 	hdr.untrusted_len = hdr.window;
-	write_struct(hdr);
-	write_data((char *) data, len);
+	write_struct(vchan, hdr);
+	write_data(vchan, (char *) data, len);
 }
 
 int is_bitset(unsigned char *keys, int num)
@@ -328,7 +329,7 @@ void handle_keypress(QubesGuiState * qs)
 	struct msg_keypress key;
 	uint32_t scancode;
 
-	read_data((char *) &key, sizeof(key));
+	read_data(vchan, (char *) &key, sizeof(key));
 
 	if (key.keycode != 66 && key.keycode != 77)
 		sync_kbd_state(qs, key.state);
@@ -341,7 +342,7 @@ void handle_button(QubesGuiState * qs)
 	int button = 0;
 	int z = 0;
 
-	read_data((char *) &key, sizeof(key));
+	read_data(vchan, (char *) &key, sizeof(key));
 	if (qs->log_level > 1)
 		fprintf(stderr,
 			"send buttonevent, type=%d button=%d\n",
@@ -383,7 +384,7 @@ void handle_motion(QubesGuiState * qs)
 	struct msg_motion key;
 	int new_x, new_y;
 
-	read_data((char *) &key, sizeof(key));
+	read_data(vchan, (char *) &key, sizeof(key));
 	new_x = key.x;
 	new_y = key.y;
 
@@ -416,7 +417,7 @@ void handle_clipboard_data(QubesGuiState * qs, int len)
 		return;
 	}
 	qs->clipboard_data_len = len;
-	read_data((char *) qs->clipboard_data, len);
+	read_data(vchan, (char *) qs->clipboard_data, len);
 	qs->clipboard_data[len] = 0;
 }
 
@@ -424,7 +425,7 @@ void handle_keymap_notify(QubesGuiState * qs)
 {
 	int i;
 	unsigned char remote_keys[32];
-	read_struct(remote_keys);
+	read_struct(vchan, remote_keys);
 	for (i = 0; i < 256; i++) {
 		if (!is_bitset(remote_keys, i)
 		    && is_bitset(qs->local_keys, i)) {
@@ -440,7 +441,7 @@ void handle_keymap_notify(QubesGuiState * qs)
 void send_protocol_version(void)
 {
 	uint32_t version = QUBES_GUID_PROTOCOL_VERSION;
-	write_struct(version);
+	write_struct(vchan, version);
 }
 
 
@@ -495,28 +496,30 @@ static void qubesgui_message_handler(void *opaque)
 	char discard[256];
 
 
-	vchan_handler_called();
+	libvchan_wait(vchan);
 	if (!qs->init_done) {
 		qubesgui_init_connection(qs);
-		goto out;
+		return;
 	}
-	if (vchan_is_eof()) {
+	if (!libvchan_is_open(vchan)) {
 		qs->init_done = 0;
 		qs->init_state = 0;
-		qemu_set_fd_handler(vchan_fd(), NULL, NULL, NULL);
-		peer_server_reinitialize(6000);
-		qemu_set_fd_handler(vchan_fd(), qubesgui_message_handler,
-				    NULL, qs);
+		qemu_set_fd_handler(libvchan_fd_for_select(vchan), NULL, NULL, NULL);
+		libvchan_close(vchan);
+		/* FIXME: 0 here is hardcoded remote domain */
+		vchan = peer_server_init(0, 6000);
+		qemu_set_fd_handler(libvchan_fd_for_select(vchan),
+				qubesgui_message_handler, NULL, qs);
 		fprintf(stderr,
 			"qubes_gui: viewer disconnected, waiting for new connection\n");
 		return;
 	}
 
-	write_data(NULL, 0);	// trigger write of queued data, if any present
-	if (read_ready() == 0) {
-		goto out;	// no data
+	write_data(vchan, NULL, 0);	// trigger write of queued data, if any present
+	if (libvchan_data_ready(vchan) == 0) {
+		return;
 	}
-	read_data((char *) &hdr, sizeof(hdr));
+	read_data(vchan, (char *) &hdr, sizeof(hdr));
 
 	switch (hdr.type) {
 	case MSG_KEYPRESS:
@@ -524,7 +527,7 @@ static void qubesgui_message_handler(void *opaque)
 		break;
 	case MSG_MAP:
 		//ignore
-		read_data(discard, sizeof(struct msg_map_info));
+		read_data(vchan, discard, sizeof(struct msg_map_info));
 		break;
 	case MSG_CLOSE:
 		//ignore
@@ -532,15 +535,15 @@ static void qubesgui_message_handler(void *opaque)
 		break;
 	case MSG_CROSSING:
 		//ignore
-		read_data(discard, sizeof(struct msg_crossing));
+		read_data(vchan, discard, sizeof(struct msg_crossing));
 		break;
 	case MSG_FOCUS:
 		//ignore
-		read_data(discard, sizeof(struct msg_focus));
+		read_data(vchan, discard, sizeof(struct msg_focus));
 		break;
 	case MSG_EXECUTE:
 		//ignore
-		read_data(discard, sizeof(struct msg_execute));
+		read_data(vchan, discard, sizeof(struct msg_execute));
 		break;
 	case MSG_BUTTON:
 		handle_button(qs);
@@ -565,15 +568,11 @@ static void qubesgui_message_handler(void *opaque)
 			hdr.type);
 		while (hdr.untrusted_len > 0) {
 			hdr.untrusted_len -=
-			    read_data(discard,
+			    read_data(vchan, discard,
 				      min(hdr.untrusted_len,
 					  sizeof(discard)));
 		}
-		goto out;
 	}
-      out:
-	// allow the handler to be called again
-	vchan_unmask_channel();
 }
 
 static DisplaySurface *qubesgui_create_displaysurface(int width,
@@ -681,9 +680,11 @@ int qubesgui_pv_display_init(DisplayState * ds)
 	fprintf(stderr, "qubes_gui/init: %d\n", __LINE__);
 	register_displaychangelistener(ds, dcl);
 
-	peer_server_init(6000);
-	qemu_set_fd_handler(vchan_fd(), qubesgui_message_handler, NULL,
+	/* FIXME: 0 here is hardcoded remote domain */
+	vchan = peer_server_init(0, 6000);
+	qemu_set_fd_handler(libvchan_fd_for_select(vchan), qubesgui_message_handler, NULL,
 			    qs);
+	qubesgui_init_connection(qs);
 
 	return 0;
 }
@@ -699,11 +700,6 @@ void qubesgui_init_connection(QubesGuiState * qs)
 	struct msg_xconf xconf;
 
 	if (qs->init_state == 0) {
-		if (vchan_handle_connected()) {
-			perror("vchan_handle_connected");
-			return;
-		}
-
 		send_protocol_version();
 		fprintf(stderr,
 			"qubes_gui/init[%d]: version sent, waiting for xorg conf\n",
@@ -712,10 +708,10 @@ void qubesgui_init_connection(QubesGuiState * qs)
 		qs->init_state++;
 	}
 	if (qs->init_state == 1) {
-		if (!read_ready())
+		if (!libvchan_data_ready(vchan))
 			return;
 
-		read_struct(xconf);
+		read_struct(vchan, xconf);
 		fprintf(stderr,
 			"qubes_gui/init[%d]: got xorg conf, creating window\n",
 			__LINE__);

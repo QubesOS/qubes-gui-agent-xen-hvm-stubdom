@@ -64,7 +64,7 @@ typedef struct QubesGuiState {
     void *nonshared_vram;
     struct DisplayState *ds;
 	int log_level;
-	struct libvchan *ctrl;
+	libvchan_t *vchan;
 
 	char *clipboard_data;
 	int clipboard_data_len;
