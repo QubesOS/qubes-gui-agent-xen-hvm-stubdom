@@ -35,7 +35,7 @@ void handle_vchan_error(libvchan_t *vchan, const char *op)
         fprintf(stderr, "EOF\n");
         exit(0);
     } else {
-        fprintf(stderr, "Error while vchan %s\n, terminating", op);
+        fprintf(stderr, "Error while vchan %s, terminating\n", op);
         exit(1);
     }
 }
@@ -84,7 +84,7 @@ int read_data(libvchan_t *vchan, char *buf, int size)
 	int ret;
 	while (written < size) {
 		ret = libvchan_read(vchan, buf + written, size - written);
-		if (ret <= 0)
+		if (ret < 0)
             handle_vchan_error(vchan, "read data");
 		written += ret;
 	}

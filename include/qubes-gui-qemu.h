@@ -31,6 +31,8 @@
 #include <libvchan.h>
 #include <console.h>
 
+#include <qubes-gui-protocol.h>
+
 /* from /usr/include/X11/X.h */
 #define KeyPress               2
 #define ButtonPress            4
@@ -65,6 +67,10 @@ typedef struct QubesGuiState {
     struct DisplayState *ds;
 	int log_level;
 	libvchan_t *vchan;
+	/* current message, keep here b/c  */
+	struct msg_hdr hdr;
+	/* amount of data to discard */
+	int vchan_data_to_discard;
 
 	char *clipboard_data;
 	int clipboard_data_len;
