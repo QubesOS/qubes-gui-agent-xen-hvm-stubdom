@@ -255,20 +255,6 @@ void handle_configure(QubesGuiState * qs)
 	qs->y = r.y;
 }
 
-/* currently unused */
-void send_clipboard_data(char *data, int len)
-{
-	struct msg_hdr hdr;
-	hdr.type = MSG_CLIPBOARD_DATA;
-	if (len > MAX_CLIPBOARD_SIZE)
-		hdr.window = MAX_CLIPBOARD_SIZE;
-	else
-		hdr.window = len;
-	hdr.untrusted_len = hdr.window;
-	write_struct(vchan, hdr);
-	write_data(vchan, (char *) data, len);
-}
-
 int is_bitset(unsigned char *keys, int num)
 {
 	return (keys[num / 8] >> (num % 8)) & 1;
@@ -405,22 +391,6 @@ void handle_motion(QubesGuiState * qs)
 
 
 
-void handle_clipboard_data(QubesGuiState * qs, int len)
-{
-
-	if (qs->clipboard_data)
-		free(qs->clipboard_data);
-	// qubes_guid will not bother to send len==-1, really
-	qs->clipboard_data = malloc(len + 1);
-	if (!qs->clipboard_data) {
-		perror("malloc");
-		return;
-	}
-	qs->clipboard_data_len = len;
-	read_data(vchan, (char *) qs->clipboard_data, len);
-	qs->clipboard_data[len] = 0;
-}
-
 void handle_keymap_notify(QubesGuiState * qs)
 {
 	int i;
@@ -555,7 +525,8 @@ static void qubesgui_message_handler(void *opaque)
 		// TODO ?
 		break;
 	case MSG_CLIPBOARD_DATA:
-		handle_clipboard_data(qs, hdr.window);
+		//ignore
+		read_data(discard, hdr.window);
 		break;
 	case MSG_KEYMAP_NOTIFY:
 		handle_keymap_notify(qs);
