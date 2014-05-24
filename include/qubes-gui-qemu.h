@@ -39,6 +39,15 @@
 #define Button3                 3
 #define Button4                 4
 #define Button5                 5
+#define ShiftMask       (1<<0)
+#define LockMask        (1<<1)
+#define ControlMask     (1<<2)
+#define Mod1Mask        (1<<3)
+#define Mod2Mask        (1<<4)
+#define Mod3Mask        (1<<5)
+#define Mod4Mask        (1<<6)
+#define Mod5Mask        (1<<7)
+
 
 /* from /usr/include/X11/Xutil.h */
 #define PPosition       (1L << 2) /* program specified position */

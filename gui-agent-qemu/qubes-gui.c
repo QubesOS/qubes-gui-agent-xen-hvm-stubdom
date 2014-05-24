@@ -310,6 +310,19 @@ void send_keycode(QubesGuiState * qs, int keycode, int release)
 	kbd_put_keycode(scancode & 0xff);
 }
 
+void sync_kbd_state(QubesGuiState * qs, int kbd_state) {
+	int qemu_state = kbd_get_leds_state();
+
+	if ( (!!(qemu_state & KDB_LED_CAPS_LOCK)) ^ (!!(kbd_state & LockMask))) {
+		send_keycode(qs, 66, 0);
+		send_keycode(qs, 66, 1);
+	}
+	if ( (!!(qemu_state & KDB_LED_NUM_LOCK)) ^ (!!(kbd_state & Mod2Mask))) {
+		send_keycode(qs, 77, 0);
+		send_keycode(qs, 77, 1);
+	}
+}
+
 void handle_keypress(QubesGuiState * qs)
 {
 	struct msg_keypress key;
@@ -317,6 +330,8 @@ void handle_keypress(QubesGuiState * qs)
 
 	read_data((char *) &key, sizeof(key));
 
+	if (key.keycode != 66 && key.keycode != 77)
+		sync_kbd_state(qs, key.state);
 	send_keycode(qs, key.keycode, key.type != KeyPress);
 }
 
@@ -343,6 +358,7 @@ void handle_button(QubesGuiState * qs)
 	else if (key.button == Button5)
 		z = 1;
 
+	sync_kbd_state(qs, key.state);
 	if (button || z) {
 		if (key.type == ButtonPress)
 			qs->buttons |= button;
