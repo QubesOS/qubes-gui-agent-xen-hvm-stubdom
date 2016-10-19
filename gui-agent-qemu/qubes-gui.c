@@ -569,86 +569,6 @@ static void qubesgui_message_handler(void *opaque)
     qs->hdr.type = 0;
 }
 
-static DisplaySurface *qubesgui_create_displaysurface(int width,
-                                                      int height)
-{
-    DisplaySurface *surface =
-        (DisplaySurface *) qemu_mallocz(sizeof(DisplaySurface));
-    if (surface == NULL) {
-        fprintf(stderr,
-                "qubesgui_create_displaysurface: malloc failed\n");
-        exit(1);
-    }
-
-    surface->width = width;
-    surface->height = height;
-    surface->linesize = width * 4;
-    surface->pf = qemu_default_pixelformat(32);
-#ifdef WORDS_BIGENDIAN
-    surface->flags = QEMU_ALLOCATED_FLAG | QEMU_BIG_ENDIAN_FLAG;
-#else
-    surface->flags = QEMU_ALLOCATED_FLAG;
-#endif
-    surface->data = qs->nonshared_vram;
-
-    return surface;
-}
-
-static DisplaySurface *qubesgui_resize_displaysurface(DisplaySurface * surface,
-                                                      int width,
-                                                      int height)
-{
-    surface->width = width;
-    surface->height = height;
-    surface->linesize = width * 4;
-    surface->pf = qemu_default_pixelformat(32);
-#ifdef WORDS_BIGENDIAN
-    surface->flags = QEMU_ALLOCATED_FLAG | QEMU_BIG_ENDIAN_FLAG;
-#else
-    surface->flags = QEMU_ALLOCATED_FLAG;
-#endif
-    surface->data = qs->nonshared_vram;
-
-    return surface;
-}
-
-static void qubesgui_free_displaysurface(DisplaySurface * surface)
-{
-    if (surface == NULL)
-        return;
-    qemu_free(surface);
-}
-
-static void qubesgui_pv_display_allocator(void)
-{
-    DisplaySurface *ds;
-    DisplayAllocator *da = qemu_mallocz(sizeof(DisplayAllocator));
-    da->create_displaysurface = qubesgui_create_displaysurface;
-    da->resize_displaysurface = qubesgui_resize_displaysurface;
-    da->free_displaysurface = qubesgui_free_displaysurface;
-    if (register_displayallocator(qs->ds, da) != da) {
-        fprintf(stderr,
-                "qubesgui_pv_display_allocator: "
-                "could not register DisplayAllocator\n");
-        exit(1);
-    }
-
-    qs->nonshared_vram = qemu_memalign(XC_PAGE_SIZE, vga_ram_size);
-    if (!qs->nonshared_vram) {
-        fprintf(stderr,
-                "qubesgui_pv_display_allocator: "
-                "could not allocate nonshared_vram\n");
-        exit(1);
-    }
-    /* Touch the pages before sharing them */
-    memset(qs->nonshared_vram, 0xff, vga_ram_size);
-
-    ds = qubesgui_create_displaysurface(ds_get_width(qs->ds),
-                                        ds_get_height(qs->ds));
-    defaultallocator_free_displaysurface(qs->ds->surface);
-    qs->ds->surface = ds;
-}
-
 static const DisplayChangeListenerOps dcl_ops = {
     .dpy_name = "qubes-gui",
     .dpy_gfx_update = qubesgui_pv_update,
@@ -666,9 +586,6 @@ int qubesgui_pv_display_init(DisplayState * ds)
 
     qs->init_done = 0;
     qs->init_state = 0;
-
-    fprintf(stderr, "qubes_gui/init: %d\n", __LINE__);
-    qubesgui_pv_display_allocator();
 
     fprintf(stderr, "qubes_gui/init: %d\n", __LINE__);
     qs->dcl.ops = &dcl_ops;
