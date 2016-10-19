@@ -17,6 +17,7 @@
 #include <qubes-gui-qemu.h>
 #include <qubes-gui-protocol.h>
 #include <libvchan.h>
+#include <u2mfnlib.h>
 #include <txrx.h>
 
 #define QUBES_GUI_PROTOCOL_VERSION_STUBDOM (1 << 16 | 0)
@@ -75,15 +76,21 @@ void send_pixmap_mfns(QubesGuiState * qs)
     int n;
     int i;
     void *data;
+    void *data_aligned;
     int offset, copy_offset;
 
     data = surface_data(qs->surface);
 
     offset = (long) data & (XC_PAGE_SIZE - 1);
+    data_aligned = (void *) ((long) data & ~(XC_PAGE_SIZE - 1));
 
     /* XXX: hardcoded 4 bytes per pixel - gui-daemon doesn't handle other bpp */
     n = (4 * surface_width(qs->surface) * surface_height(qs->surface) +
          offset + (XC_PAGE_SIZE-1)) / XC_PAGE_SIZE;
+    if (mlock(data_aligned, n * XC_PAGE_SIZE) == -1) {
+        perror("mlock failed");
+        return;
+    }
     mfns = g_new(uint32_t, n);
     if (!mfns) {
         fprintf(stderr,
@@ -95,7 +102,9 @@ void send_pixmap_mfns(QubesGuiState * qs)
             "dumping mfns: n=%d, w=%d, h=%d\n",
             n, surface_width(qs->surface), surface_height(qs->surface));
     for (i = 0; i < n; i++)
-        mfns[i] = virtual_to_mfn(data + i * XC_PAGE_SIZE);
+        u2mfn_get_mfn_for_page_with_fd(qs->u2mfn_fd,
+                (long) data_aligned + i * XC_PAGE_SIZE,
+                (int *) &mfns[i]);
     hdr.type = MSG_MFNDUMP;
     hdr.window = QUBES_MAIN_WINDOW;
     hdr.untrusted_len = sizeof(shmcmd) + n * sizeof(*mfns);
@@ -518,6 +527,12 @@ int qubesgui_pv_display_init(DisplayState * ds)
 
     qs->init_done = 0;
     qs->init_state = 0;
+
+    qs->u2mfn_fd = u2mfn_get_fd();
+    if (qs->u2mfn_fd == -1) {
+        perror("u2mfn_get_fd failed");
+        return -1;
+    }
 
     fprintf(stderr, "qubes_gui/init: %d\n", __LINE__);
     qs->dcl.ops = &dcl_ops;

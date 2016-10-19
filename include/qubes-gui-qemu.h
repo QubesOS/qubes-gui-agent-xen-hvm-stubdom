@@ -81,6 +81,7 @@ typedef struct QubesGuiState {
     int init_done;
     int init_state;
     unsigned char local_keys[32];
+    int u2mfn_fd;
 } QubesGuiState;
 
 int qubesgui_pv_display_init(struct DisplayState *ds);
