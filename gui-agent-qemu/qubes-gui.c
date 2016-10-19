@@ -381,7 +381,7 @@ static void qubesgui_pv_switch(DisplayChangeListener * dcl, DisplaySurface * sur
 
 static void qubesgui_pv_refresh(DisplayChangeListener * dcl)
 {
-    vga_hw_update();
+    graphic_hw_update(dcl->con);
 }
 
 static bool qubesgui_pv_check_format(DisplayChangeListener *dcl,
