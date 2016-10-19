@@ -162,7 +162,7 @@ void send_pixmap_mfns(QubesGuiState * qs)
     offset = (long) data & (XC_PAGE_SIZE - 1);
 
     /* XXX: hardcoded 4 bytes per pixel - gui-daemon doesn't handle other bpp */
-    n = (4 * ds_get_width(qs->ds) * ds_get_height(qs->ds) +
+    n = (4 * surface_width(qs->surface) * surface_height(qs->surface) +
          offset + (XC_PAGE_SIZE-1)) / XC_PAGE_SIZE;
     mfns = malloc(n * sizeof(*mfns));
     if (!mfns) {
@@ -173,14 +173,14 @@ void send_pixmap_mfns(QubesGuiState * qs)
     }
     fprintf(stderr,
             "dumping mfns: n=%d, w=%d, h=%d, bpp=%d\n",
-            n, ds_get_width(qs->ds), ds_get_height(qs->ds), bpp);
+            n, surface_width(qs->surface), surface_height(qs->surface), bpp);
     for (i = 0; i < n; i++)
         mfns[i] = virtual_to_mfn(data + i * XC_PAGE_SIZE);
     hdr.type = MSG_MFNDUMP;
     hdr.window = QUBES_MAIN_WINDOW;
     hdr.untrusted_len = sizeof(shmcmd) + n * sizeof(*mfns);
-    shmcmd.width = ds_get_width(qs->ds);
-    shmcmd.height = ds_get_height(qs->ds);
+    shmcmd.width = surface_width(qs->surface);
+    shmcmd.height = surface_height(qs->surface);
     shmcmd.num_mfn = n;
     shmcmd.off = offset;
     shmcmd.bpp = bpp;
@@ -207,10 +207,10 @@ void send_wmhints(QubesGuiState * qs)
 
     // pass only some hints
     msg.flags = (PMinSize | PMaxSize);
-    msg.min_width = ds_get_width(qs->ds);
-    msg.min_height = ds_get_height(qs->ds);
-    msg.max_width = ds_get_width(qs->ds);
-    msg.max_height = ds_get_height(qs->ds);
+    msg.min_width = surface_width(qs->surface);
+    msg.min_height = surface_height(qs->surface);
+    msg.max_width = surface_width(qs->surface);
+    msg.max_height = surface_height(qs->surface);
     hdr.window = QUBES_MAIN_WINDOW;
     hdr.type = MSG_WINDOW_HINTS;
     write_message(vchan, hdr, msg);
@@ -228,21 +228,24 @@ void send_map(QubesGuiState * qs)
     write_message(vchan, hdr, map_info);
 }
 
-void process_pv_resize(QubesGuiState * qs, int width, int height,
-                       int linesize)
+void process_pv_resize(QubesGuiState * qs)
 {
+    if (!qs->surface) {
+        return;
+    }
+
     struct msg_hdr hdr;
     struct msg_configure conf;
-    if (qs->log_level > 1)
-        fprintf(stderr,
-                "handle resize  w=%d h=%d\n", width, height);
     hdr.type = MSG_CONFIGURE;
     hdr.window = QUBES_MAIN_WINDOW;
     conf.x = qs->x;
     conf.y = qs->y;
-    conf.width = width;
-    conf.height = height;
+    conf.width = surface_width(qs->surface);
+    conf.height = surface_height(qs->surface);
     conf.override_redirect = 0;
+    if (qs->log_level > 1)
+        fprintf(stderr,
+                "handle resize  w=%d h=%d\n", conf.width, conf.height);
     write_message(vchan, hdr, conf);
     send_pixmap_mfns(qs);
     send_wmhints(qs);
@@ -441,8 +444,10 @@ static void qubesgui_pv_switch(DisplayChangeListener * dcl, DisplaySurface * sur
 
     if (!qs->init_done)
         return;
-    process_pv_resize(qs, ds_get_width(ds), ds_get_height(ds),
-                      ds_get_linesize(ds));
+
+    qs->surface = surface;
+
+    process_pv_resize(qs);
 }
 
 static void qubesgui_pv_refresh(DisplayChangeListener * dcl)
@@ -633,17 +638,18 @@ void qubesgui_init_connection(QubesGuiState * qs)
         fprintf(stderr,
                 "qubes_gui/init[%d]: got xorg conf, creating window\n",
                 __LINE__);
-        qubes_create_window(qs, ds_get_width(qs->ds),
-                            ds_get_height(qs->ds));
+        // If we don't have a surface yet just send an arbitary window
+        // size. QEMU should set a surface very soon.
+        qubes_create_window(qs,
+                            qs->surface ? surface_width(qs->surface) : 100,
+                            qs->surface ? surface_height(qs->surface) : 100);
 
         send_map(qs);
         send_wmname(qs, qemu_name);
 
         fprintf(stderr, "qubes_gui/init: %d\n", __LINE__);
         /* process_pv_resize will send mfns */
-        process_pv_resize(qs, ds_get_width(qs->ds),
-                          ds_get_height(qs->ds),
-                          ds_get_linesize(qs->ds));
+        process_pv_resize(qs);
 
         qs->init_state++;
         qs->init_done = 1;
