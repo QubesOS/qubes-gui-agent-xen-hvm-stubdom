@@ -84,7 +84,7 @@ void send_pixmap_mfns(QubesGuiState * qs)
     /* XXX: hardcoded 4 bytes per pixel - gui-daemon doesn't handle other bpp */
     n = (4 * surface_width(qs->surface) * surface_height(qs->surface) +
          offset + (XC_PAGE_SIZE-1)) / XC_PAGE_SIZE;
-    mfns = malloc(n * sizeof(*mfns));
+    mfns = g_new(uint32_t, n);
     if (!mfns) {
         fprintf(stderr,
                 "Cannot allocate mfns array, %lu bytes needed\n",
@@ -107,7 +107,7 @@ void send_pixmap_mfns(QubesGuiState * qs)
     write_struct(vchan, hdr);
     write_struct(vchan, shmcmd);
     write_data(vchan, (char *) mfns, n * sizeof(*mfns));
-    free(mfns);
+    g_free(mfns);
 }
 
 void send_wmname(QubesGuiState * qs, const char *wmname)
@@ -512,7 +512,7 @@ int qubesgui_pv_display_init(DisplayState * ds)
 {
 
     fprintf(stderr, "qubes_gui/init: %d\n", __LINE__);
-    qs = qemu_mallocz(sizeof(QubesGuiState));
+    qs = g_new0(QubesGuiState, 1);
     if (!qs)
         return -1;
 
