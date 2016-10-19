@@ -84,7 +84,7 @@ typedef struct QubesGuiState {
     int u2mfn_fd;
 } QubesGuiState;
 
-int qubesgui_pv_display_init(struct DisplayState *ds);
+int qubesgui_pv_display_init(int log_level);
 void qubesgui_init_connection(QubesGuiState *qs);
 
 extern uint32_t qubes_keycode2scancode[256];
