@@ -64,7 +64,7 @@
 
 typedef struct QubesGuiState {
     void *nonshared_vram;
-    struct DisplayState *ds;
+    DisplayChangeListener dcl;
     int log_level;
     libvchan_t *vchan;
     /* current message, keep here b/c  */

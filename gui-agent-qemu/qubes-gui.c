@@ -423,10 +423,10 @@ void send_protocol_version(void)
 
 /* end of based on gui-agent/vmside.c */
 
-static void qubesgui_pv_update(DisplayState * ds, int x, int y, int w,
+static void qubesgui_pv_update(DisplayChangeListener * dcl, int x, int y, int w,
                                int h)
 {
-    QubesGuiState *qs = ds->opaque;
+    QubesGuiState *qs = container_of(dcl, QubesGuiState, dcl);
     if (!qs->init_done)
         return;
     // ignore one-line updates, Windows send them constantly at no reason
@@ -435,23 +435,9 @@ static void qubesgui_pv_update(DisplayState * ds, int x, int y, int w,
     process_pv_update(qs, x, y, w, h);
 }
 
-static void qubesgui_pv_resize(DisplayState * ds)
+static void qubesgui_pv_switch(DisplayChangeListener * dcl, DisplaySurface * surface)
 {
-    QubesGuiState *qs = ds->opaque;
-
-    fprintf(stderr, "resize to %dx%d@%d, %d required\n",
-            ds_get_width(ds), ds_get_height(ds),
-            ds_get_bits_per_pixel(ds), ds_get_linesize(ds));
-    if (!qs->init_done)
-        return;
-
-    process_pv_resize(qs, ds_get_width(ds), ds_get_height(ds),
-                      ds_get_linesize(ds));
-}
-
-static void qubesgui_pv_setdata(DisplayState * ds)
-{
-    QubesGuiState *qs = ds->opaque;
+    QubesGuiState *qs = container_of(dcl, QubesGuiState, dcl);
 
     if (!qs->init_done)
         return;
@@ -459,7 +445,7 @@ static void qubesgui_pv_setdata(DisplayState * ds)
                       ds_get_linesize(ds));
 }
 
-static void qubesgui_pv_refresh(DisplayState * ds)
+static void qubesgui_pv_refresh(DisplayChangeListener * dcl)
 {
     vga_hw_update();
 }
@@ -663,6 +649,13 @@ static void qubesgui_pv_display_allocator(void)
     qs->ds->surface = ds;
 }
 
+static const DisplayChangeListenerOps dcl_ops = {
+    .dpy_name = "qubes-gui",
+    .dpy_gfx_update = qubesgui_pv_update,
+    .dpy_gfx_switch = qubesgui_pv_switch,
+    .dpy_refresh = qubesgui_pv_refresh
+};
+
 int qubesgui_pv_display_init(DisplayState * ds)
 {
 
@@ -671,7 +664,6 @@ int qubesgui_pv_display_init(DisplayState * ds)
     if (!qs)
         return -1;
 
-    qs->ds = ds;
     qs->init_done = 0;
     qs->init_state = 0;
 
@@ -679,16 +671,9 @@ int qubesgui_pv_display_init(DisplayState * ds)
     qubesgui_pv_display_allocator();
 
     fprintf(stderr, "qubes_gui/init: %d\n", __LINE__);
-    dcl = qemu_mallocz(sizeof(DisplayChangeListener));
-    if (!dcl)
-        exit(1);
-    ds->opaque = qs;
-    dcl->dpy_update = qubesgui_pv_update;
-    dcl->dpy_resize = qubesgui_pv_resize;
-    dcl->dpy_setdata = qubesgui_pv_setdata;
-    dcl->dpy_refresh = qubesgui_pv_refresh;
+    qs->dcl.ops = &dcl_ops;
     fprintf(stderr, "qubes_gui/init: %d\n", __LINE__);
-    register_displaychangelistener(ds, dcl);
+    register_displaychangelistener(&qs->dcl);
 
     /* FIXME: 0 here is hardcoded remote domain */
     vchan = peer_server_init(0, 6000);
