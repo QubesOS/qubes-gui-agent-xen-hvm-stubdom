@@ -572,7 +572,7 @@ void qubesgui_init_connection(QubesGuiState * qs)
                             qs->surface ? surface_height(qs->surface) : 100);
 
         send_map(qs);
-        send_wmname(qs, qemu_name);
+        send_wmname(qs, qemu_get_vm_name());
 
         fprintf(stderr, "qubes_gui/init: %d\n", __LINE__);
         /* process_pv_resize will send mfns */
