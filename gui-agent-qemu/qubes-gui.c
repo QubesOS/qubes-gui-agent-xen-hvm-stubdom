@@ -63,7 +63,7 @@ typedef struct QubesGuiState {
     int u2mfn_fd;
 } QubesGuiState;
 
-void qubesgui_init_connection(QubesGuiState *qs);
+static void qubesgui_init_connection(QubesGuiState *qs);
 
 extern uint32_t qubes_keycode2scancode[256];
 
@@ -81,8 +81,8 @@ static DisplayChangeListener *dcl;
 
 extern uint32_t vga_ram_size;
 
-void process_pv_update(QubesGuiState * qs,
-                       int x, int y, int width, int height)
+static void process_pv_update(QubesGuiState * qs,
+                              int x, int y, int width, int height)
 {
     struct msg_shmimage mx;
     struct msg_hdr hdr;
@@ -97,7 +97,7 @@ void process_pv_update(QubesGuiState * qs,
 }
 
 
-void qubes_create_window(QubesGuiState * qs, int w, int h)
+static void qubes_create_window(QubesGuiState * qs, int w, int h)
 {
     struct msg_hdr hdr;
     struct msg_create crt;
@@ -115,7 +115,7 @@ void qubes_create_window(QubesGuiState * qs, int w, int h)
     write_message(vchan, hdr, crt);
 }
 
-void send_pixmap_mfns(QubesGuiState * qs)
+static void send_pixmap_mfns(QubesGuiState * qs)
 {
     struct shm_cmd shmcmd;
     struct msg_hdr hdr;
@@ -166,7 +166,7 @@ void send_pixmap_mfns(QubesGuiState * qs)
     g_free(mfns);
 }
 
-void send_wmname(QubesGuiState * qs, const char *wmname)
+static void send_wmname(QubesGuiState * qs, const char *wmname)
 {
     struct msg_hdr hdr;
     struct msg_wmname msg;
@@ -176,7 +176,7 @@ void send_wmname(QubesGuiState * qs, const char *wmname)
     write_message(vchan, hdr, msg);
 }
 
-void send_wmhints(QubesGuiState * qs)
+static void send_wmhints(QubesGuiState * qs)
 {
     struct msg_hdr hdr;
     struct msg_window_hints msg;
@@ -192,7 +192,7 @@ void send_wmhints(QubesGuiState * qs)
     write_message(vchan, hdr, msg);
 }
 
-void send_map(QubesGuiState * qs)
+static void send_map(QubesGuiState * qs)
 {
     struct msg_hdr hdr;
     struct msg_map_info map_info;
@@ -204,7 +204,7 @@ void send_map(QubesGuiState * qs)
     write_message(vchan, hdr, map_info);
 }
 
-void process_pv_resize(QubesGuiState * qs)
+static void process_pv_resize(QubesGuiState * qs)
 {
     if (!qs->surface) {
         return;
@@ -227,7 +227,7 @@ void process_pv_resize(QubesGuiState * qs)
     send_wmhints(qs);
 }
 
-void handle_configure(QubesGuiState * qs)
+static void handle_configure(QubesGuiState * qs)
 {
     struct msg_configure r;
     read_data(vchan, (char *) &r, sizeof(r));
@@ -239,12 +239,12 @@ void handle_configure(QubesGuiState * qs)
     qs->y = r.y;
 }
 
-int is_bitset(unsigned char *keys, int num)
+static int is_bitset(unsigned char *keys, int num)
 {
     return (keys[num / 8] >> (num % 8)) & 1;
 }
 
-void setbit(unsigned char *keys, int num, int value)
+static void setbit(unsigned char *keys, int num, int value)
 {
     if (value)
         keys[num / 8] |= 1 << (num % 8);
@@ -252,7 +252,7 @@ void setbit(unsigned char *keys, int num, int value)
         keys[num / 8] &= ~(1 << (num % 8));
 }
 
-void send_keycode(QubesGuiState * qs, int keycode, int release)
+static void send_keycode(QubesGuiState * qs, int keycode, int release)
 {
     uint32_t scancode = qubes_keycode2scancode[keycode];
 
@@ -281,7 +281,7 @@ void send_keycode(QubesGuiState * qs, int keycode, int release)
     kbd_put_keycode(scancode & 0xff);
 }
 
-void sync_kbd_state(QubesGuiState * qs, int kbd_state) {
+static void sync_kbd_state(QubesGuiState * qs, int kbd_state) {
     int qemu_state = kbd_get_leds_state();
 
     if ( (!!(qemu_state & KDB_LED_CAPS_LOCK)) ^ (!!(kbd_state & LockMask))) {
@@ -294,7 +294,7 @@ void sync_kbd_state(QubesGuiState * qs, int kbd_state) {
     }
 }
 
-void handle_keypress(QubesGuiState * qs)
+static void handle_keypress(QubesGuiState * qs)
 {
     struct msg_keypress key;
     uint32_t scancode;
@@ -306,7 +306,7 @@ void handle_keypress(QubesGuiState * qs)
     send_keycode(qs, key.keycode, key.type != KeyPress);
 }
 
-void handle_button(QubesGuiState * qs)
+static void handle_button(QubesGuiState * qs)
 {
     struct msg_button key;
     int button = 0;
@@ -349,7 +349,7 @@ void handle_button(QubesGuiState * qs)
     }
 }
 
-void handle_motion(QubesGuiState * qs)
+static void handle_motion(QubesGuiState * qs)
 {
     struct msg_motion key;
     int new_x, new_y;
@@ -377,7 +377,7 @@ void handle_motion(QubesGuiState * qs)
 
 
 
-void handle_keymap_notify(QubesGuiState * qs)
+static void handle_keymap_notify(QubesGuiState * qs)
 {
     int i;
     unsigned char remote_keys[32];
@@ -393,7 +393,7 @@ void handle_keymap_notify(QubesGuiState * qs)
     }
 }
 
-void send_protocol_version(void)
+static void send_protocol_version(void)
 {
     uint32_t version = QUBES_GUID_PROTOCOL_VERSION;
     write_struct(vchan, version);
@@ -598,13 +598,13 @@ int qubesgui_pv_display_init(int log_level)
     return 0;
 }
 
-int qubesgui_pv_display_vram(void *data)
+static int qubesgui_pv_display_vram(void *data)
 {
     vga_vram = data;
     return 0;
 }
 
-void qubesgui_init_connection(QubesGuiState * qs)
+static void qubesgui_init_connection(QubesGuiState * qs)
 {
     struct msg_xconf xconf;
 
