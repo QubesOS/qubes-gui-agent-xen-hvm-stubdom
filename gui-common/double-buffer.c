@@ -53,11 +53,9 @@ void double_buffer_append(char *buf, int size)
         char *newbuf;
         if (newsize > BUFFER_SIZE_MAX) {
             fprintf(stderr,
-                    "double_buffer_append: "
+                    "double_buffer_append failed: "
                     "offset=%d, data_count=%d, req_size=%d\n",
                     data_offset, data_count, size);
-            system("xmessage -button OK:2 'Out of buffer space "
-                   "(AppVM refuses to read data?), terminating...'");
             exit(1);
         }
         newbuf = malloc(newsize);
