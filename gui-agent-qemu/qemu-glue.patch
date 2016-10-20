@@ -1,41 +1,71 @@
-diff -ru xen-4.1.1/tools/ioemu-qemu-xen/vl.c xen-4.1.1/tools/ioemu-qemu-xen/vl.c
---- xen-4.1.1/tools/ioemu-qemu-xen/vl.c	2011-02-11 18:54:51.000000000 +0100
-+++ xen-4.1.1/tools/ioemu-qemu-xen/vl.c	2012-02-21 13:52:43.320000307 +0100
-@@ -52,6 +52,10 @@
+--- a/Makefile.objs
++++ b/Makefile.objs
+@@ -62,6 +62,7 @@ common-obj-y += accel.o
+ common-obj-y += replay/
  
- #include <xen/hvm/hvm_info_table.h>
+ common-obj-y += ui/
++common-obj-y += gui-agent/
+ common-obj-y += bt-host.o bt-vhci.o
+ bt-host.o-cflags := $(BLUEZ_CFLAGS)
  
-+#ifdef CONFIG_STUBDOM
-+#include <qubes-gui-qemu.h>
-+#endif
-+
- #include <unistd.h>
- #include <fcntl.h>
- #include <signal.h>
-@@ -5984,7 +5988,9 @@
-         }
-     } else { 
- #ifdef CONFIG_STUBDOM
--        if (xenfb_pv_display_init(ds) == 0) {
-+        if (qubesgui_pv_display_init(ds) == 0) {
-+            fprintf(stderr, "qubes gui initialized\n");
-+        } else if (xenfb_pv_display_init(ds) == 0) {
-         } else
+--- a/vl.c
++++ b/vl.c
+@@ -73,6 +73,7 @@ int main(int argc, char **argv)
+ #include "net/slirp.h"
+ #include "monitor/monitor.h"
+ #include "ui/console.h"
++#include "gui-agent/include/qubes-gui-qemu.h"
+ #include "ui/input.h"
+ #include "sysemu/sysemu.h"
+ #include "sysemu/numa.h"
+@@ -144,6 +145,7 @@ static int rtc_date_offset = -1; /* -1 m
+ QEMUClockType rtc_clock;
+ int vga_interface_type = VGA_NONE;
+ static int full_screen = 0;
++static int qubesgui_log_level = 0;
+ static int no_frame = 0;
+ int no_quit = 0;
+ static bool grab_on_hover;
+@@ -2059,6 +2061,7 @@ typedef enum DisplayType {
+     DT_SDL,
+     DT_COCOA,
+     DT_GTK,
++    DT_QUBESGUI,
+     DT_NONE,
+ } DisplayType;
+ 
+@@ -2178,6 +2181,24 @@ static DisplayType select_display(const
+         error_report("GTK support is disabled");
+         exit(1);
  #endif
- #if defined(CONFIG_CURSES)
-diff -ru xen-4.1.1/tools/ioemu-qemu-xen/xen-hooks.mak xen-4.1.1/tools/ioemu-qemu-xen/xen-hooks.mak
---- xen-4.1.1/tools/ioemu-qemu-xen/xen-hooks.mak	2011-02-11 18:54:51.000000000 +0100
-+++ xen-4.1.1/tools/ioemu-qemu-xen/xen-hooks.mak	2012-02-21 13:51:46.908000310 +0100
-@@ -45,6 +45,12 @@
- CONFIG_SDL=
- CONFIG_AUDIO=
- OBJS += xenfbfront.o
++    } else if (strstart(p, "qubes-gui", &opts)) {
++        display = DT_QUBESGUI;
++        while (*opts) {
++            const char *nextopt;
 +
-+OBJS+= qubes-gui.o txrx-vchan.o double-buffer.o qubes-gui-keymap.o
-+LIBS+= -lvchan -lxenvchan
-+CPPFLAGS += -I$(XEN_ROOT)/tools/vchan -I$(XEN_ROOT)/tools/libvchan -I$(XEN_ROOT)/tools/qubes-gui/include
-+VPATH+=:$(XEN_ROOT)/tools/qubes-gui/gui-common:$(XEN_ROOT)/tools/qubes-gui/gui-agent-qemu
-+
- else
- CPPFLAGS+= -I$(XEN_ROOT)/tools/blktap/lib
- LIBS += -L$(XEN_ROOT)/tools/blktap/lib -lblktap
++            if (strstart(opts, ",log=", &nextopt)) {
++                opts = nextopt;
++                qubesgui_log_level = strtol(opts, &nextopt, 0);
++                if (nextopt == opts) {
++                    goto invalid_qubesgui_args;
++                }
++            } else {
++            invalid_qubesgui_args:
++                error_report("invalid Qubes GUI option string");
++                exit(1);
++            }
++            opts = nextopt;
++        }
+     } else if (strstart(p, "none", &opts)) {
+         display = DT_NONE;
+     } else {
+@@ -4533,6 +4554,9 @@ int main(int argc, char **argv, char **e
+     case DT_GTK:
+         gtk_display_init(ds, full_screen, grab_on_hover);
+         break;
++    case DT_QUBESGUI:
++        qubesgui_pv_display_init(qubesgui_log_level);
++        break;
+     default:
+         break;
+     }
