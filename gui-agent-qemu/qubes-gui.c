@@ -1,34 +1,16 @@
 /* based on gui-agent/vmside.c */
 
 #include <stdint.h>
-#include <xen/io/fbif.h>
-#include <xen/io/kbdif.h>
-#include <semaphore.h>
-#include <sched.h>
-#include <hw/hw.h>
-#include <hw/pc.h>
-#include <console.h>
-
-#include <mm.h>
-#include <hw/xenfb.h>
-#include <fbfront.h>
-#include <sysemu.h>
+#include <qemu/osdep.h>
+#include <qemu-common.h>
+#include <ui/console.h>
+#include <qemu/main-loop.h>
 
 #include <qubes-gui-qemu.h>
 #include <qubes-gui-protocol.h>
 #include <libvchan.h>
 #include <u2mfnlib.h>
 #include <txrx.h>
-
-#include <semaphore.h>
-#include <sched.h>
-#include <hw/hw.h>
-#include <hw/pc.h>
-
-#include <libvchan.h>
-#include <console.h>
-
-#include <qubes-gui-protocol.h>
 
 /* from /usr/include/X11/X.h */
 #define KeyPress               2
