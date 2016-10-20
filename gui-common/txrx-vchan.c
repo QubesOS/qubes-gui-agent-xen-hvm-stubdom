@@ -26,10 +26,11 @@
 #include <sys/select.h>
 #include <xenstore.h>
 #include "double-buffer.h"
+#include <txrx.h>
 
 int double_buffered = 0;
 
-void handle_vchan_error(libvchan_t *vchan, const char *op)
+static void handle_vchan_error(libvchan_t *vchan, const char *op)
 {
     if (!libvchan_is_open(vchan)) {
         fprintf(stderr, "EOF\n");
@@ -40,7 +41,7 @@ void handle_vchan_error(libvchan_t *vchan, const char *op)
     }
 }
 
-int write_data_exact(libvchan_t *vchan, char *buf, int size)
+static int write_data_exact(libvchan_t *vchan, char *buf, int size)
 {
     int written = 0;
     int ret;
@@ -93,8 +94,8 @@ int read_data(libvchan_t *vchan, char *buf, int size)
     return size;
 }
 
-int wait_for_vchan_or_argfd_once(libvchan_t *vchan,
-                                 int nfd, int *fd, fd_set * retset)
+static int wait_for_vchan_or_argfd_once(libvchan_t *vchan,
+                                        int nfd, int *fd, fd_set * retset)
 {
     fd_set rfds;
     int vfd, max = 0, ret, i;

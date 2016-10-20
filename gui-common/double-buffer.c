@@ -23,6 +23,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <double-buffer.h>
 
 static char *buffer;
 static int buffer_size;
@@ -30,7 +31,7 @@ static int data_offset;
 static int data_count;
 #define BUFFER_SIZE_MIN 8192
 #define BUFFER_SIZE_MAX 10000000
-void double_buffer_init()
+void double_buffer_init(void)
 {
     buffer = malloc(BUFFER_SIZE_MIN);
     if (!buffer) {
@@ -74,12 +75,12 @@ void double_buffer_append(char *buf, int size)
     data_count += size;
 }
 
-int double_buffer_datacount()
+int double_buffer_datacount(void)
 {
     return data_count;
 }
 
-char *double_buffer_data()
+char *double_buffer_data(void)
 {
     return buffer + data_offset;
 }
