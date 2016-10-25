@@ -56,7 +56,6 @@ typedef struct QubesGuiState {
     int clipboard_data_len;
     int x;
     int y;
-    int z; /* TODO */
     int mouse_x;
     int mouse_y;
     int init_done;
@@ -75,12 +74,6 @@ static void qubesgui_init_connection(QubesGuiState *qs);
 
 #define min(x,y) ((x)>(y)?(y):(x))
 #define QUBES_MAIN_WINDOW 1
-
-static void *vga_vram;
-
-static DisplayChangeListener *dcl;
-
-extern uint32_t vga_ram_size;
 
 static void process_pv_update(QubesGuiState * qs,
                               int x, int y, int width, int height)
@@ -102,7 +95,6 @@ static void qubes_create_window(QubesGuiState * qs, int w, int h)
 {
     struct msg_hdr hdr;
     struct msg_create crt;
-    int ret;
 
     // the following hopefully avoids missed damage events
     hdr.type = MSG_CREATE;
@@ -125,7 +117,7 @@ static void send_pixmap_mfns(QubesGuiState * qs)
     int i;
     void *data;
     void *data_aligned;
-    int offset, copy_offset;
+    int offset;
 
     data = surface_data(qs->surface);
 
@@ -297,7 +289,6 @@ static void sync_kbd_state(QubesGuiState * qs, int kbd_state) {
 static void handle_keypress(QubesGuiState * qs)
 {
     struct msg_keypress key;
-    uint32_t scancode;
 
     read_data(qs->vchan, (char *) &key, sizeof(key));
 
@@ -452,7 +443,6 @@ static bool qubesgui_pv_check_format(DisplayChangeListener *dcl,
 
 static void qubesgui_message_handler(void *opaque)
 {
-#define KBD_NUM_BATCH 64
     QubesGuiState *qs = opaque;
     char discard[256];
 
@@ -616,12 +606,6 @@ int qubesgui_pv_display_init(int log_level)
 
     qemu_add_led_event_handler(qubesgui_pv_kbd_led_event, qs);
 
-    return 0;
-}
-
-static int qubesgui_pv_display_vram(void *data)
-{
-    vga_vram = data;
     return 0;
 }
 
