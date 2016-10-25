@@ -78,11 +78,11 @@ print("""\
 
 #include <stdint.h>
 
-uint8_t {name}[] = {{\
+uint8_t {name}[256] = {{\
 """.format(name=table_name))
 
-# X evdev keycode have an offset of 8
-for k in range(max(keycodes) + 1 + 8):
+# X evdev keycodes have an offset of 8
+for k in range(256):
     print("/* {0:3} */ 0x{1:02x},".format(k, k_map.get(k - 8, 0)))
 
 print("""\

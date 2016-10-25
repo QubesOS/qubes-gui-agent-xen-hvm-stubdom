@@ -257,6 +257,11 @@ static void setbit(unsigned char *keys, int num, int value)
 
 static void send_keycode(QubesGuiState * qs, int keycode, int release)
 {
+    if (keycode > 255 || keycode < 0) {
+        fprintf(stderr, "invalid keycode %d\n", keycode);
+        return;
+    }
+
     uint8_t scancode = qubes_keycode2scancode[keycode];
 
     setbit(qs->local_keys, keycode, !release);
