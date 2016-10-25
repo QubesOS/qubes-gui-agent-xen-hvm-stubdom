@@ -4,6 +4,7 @@
 #include <qemu/osdep.h>
 #include <qemu-common.h>
 #include <ui/console.h>
+#include <ui/input.h>
 #include <qemu/main-loop.h>
 
 #include <qubes-gui-qemu.h>
