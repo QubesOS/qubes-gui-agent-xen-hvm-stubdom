@@ -433,10 +433,10 @@ static void qubesgui_pv_switch(DisplayChangeListener * dcl, DisplaySurface * sur
 {
     QubesGuiState *qs = container_of(dcl, QubesGuiState, dcl);
 
+    qs->surface = surface;
+
     if (!qs->init_done)
         return;
-
-    qs->surface = surface;
 
     process_pv_resize(qs);
 }
@@ -601,6 +601,8 @@ int qubesgui_pv_display_init(int log_level)
     fprintf(stderr, "qubes_gui/init: %d\n", __LINE__);
     qs->dcl.ops = &dcl_ops;
     fprintf(stderr, "qubes_gui/init: %d\n", __LINE__);
+    // This also calls qubesgui_pv_switch() which sets the surface if
+    // already available.
     register_displaychangelistener(&qs->dcl);
 
     /* FIXME: 0 here is hardcoded remote domain */
