@@ -392,12 +392,13 @@ static void handle_keymap_notify(QubesGuiState * qs)
     unsigned char remote_keys[32];
     read_struct(vchan, remote_keys);
     for (i = 0; i < 256; i++) {
-        if (!is_bitset(remote_keys, i) && is_bitset(qs->local_keys, i)) {
-            send_keycode(qs, i, 1);
+        if (is_bitset(remote_keys, i) != is_bitset(qs->local_keys, i)) {
+            send_keycode(qs, i, !is_bitset(remote_keys, i));
             if (qs->log_level > 1)
                 fprintf(stderr,
-                        "handle_keymap_notify: unsetting key %d\n",
-                        i);
+                        "handle_keymap_notify: sending key %d %s\n",
+                        i,
+                        is_bitset(remote_keys, i) ? "down" : "up");
         }
     }
 }
