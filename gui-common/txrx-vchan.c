@@ -142,7 +142,7 @@ void wait_for_vchan_or_argfd(libvchan_t *vchan,
 libvchan_t *peer_server_init(int domain, int port)
 {
     libvchan_t *vchan;
-#ifdef CONFIG_STUBDOM
+#if 1
     double_buffer_init();
     double_buffered = 1;
 #else

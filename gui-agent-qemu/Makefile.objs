@@ -1,3 +1,8 @@
-common-obj-y += qubes-gui.o qubes-gui-keymap.o
+common-obj-y += qubes-gui.o
 qubes-gui.o-cflags += $(QUBES_GUI_CFLAGS)
 qubes-gui.o-libs += $(shell pkg-config --libs vchan-xen) -lu2mfn
+
+GENERATED_HEADERS += $(QUBES_GUI_DIR)/gui-agent-qemu/qubes-keycode2scancode.c
+
+$(QUBES_GUI_DIR)/gui-agent-qemu/qubes-keycode2scancode.c: $(QUBES_GUI_DIR)/gui-agent-qemu/gen-keycode2scancode
+	$< qubes_keycode2scancode > $@
