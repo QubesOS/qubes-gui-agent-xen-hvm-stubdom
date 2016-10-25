@@ -56,7 +56,8 @@ typedef struct QubesGuiState {
     int x;
     int y;
     int z; /* TODO */
-    int buttons;
+    int mouse_x;
+    int mouse_y;
     int init_done;
     int init_state;
     unsigned char local_keys[32];
@@ -305,8 +306,7 @@ static void handle_keypress(QubesGuiState * qs)
 static void handle_button(QubesGuiState * qs)
 {
     struct msg_button key;
-    int button = 0;
-    int z = 0;
+    int button = -1;
 
     read_data(vchan, (char *) &key, sizeof(key));
     if (qs->log_level > 1)
@@ -315,60 +315,73 @@ static void handle_button(QubesGuiState * qs)
                 (int) key.type, key.button);
 
     if (key.button == Button1)
-        button = MOUSE_EVENT_LBUTTON;
+        button = INPUT_BUTTON_LEFT;
     else if (key.button == Button3)
-        button = MOUSE_EVENT_RBUTTON;
+        button = INPUT_BUTTON_RIGHT;
     else if (key.button == Button2)
-        button = MOUSE_EVENT_MBUTTON;
+        button = INPUT_BUTTON_MIDDLE;
     else if (key.button == Button4)
-        z = -1;
+        button = INPUT_BUTTON_WHEEL_UP;
     else if (key.button == Button5)
-        z = 1;
+        button = INPUT_BUTTON_WHEEL_DOWN;
 
     sync_kbd_state(qs, key.state);
-    if (button || z) {
-        if (key.type == ButtonPress)
-            qs->buttons |= button;
-        else
-            qs->buttons &= ~button;
-        if (kbd_mouse_is_absolute())
-            kbd_mouse_event(qs->x * 0x7FFF /
-                            (ds_get_width(qs->ds) - 1),
-                            qs->y * 0x7FFF /
-                            (ds_get_height(qs->ds) - 1), z,
-                            qs->buttons);
-        else
-            kbd_mouse_event(0, 0, 0, qs->buttons);
+    if (button != -1) {
+        qemu_input_queue_btn(qs->dcl.con, button, key.type == ButtonPress);
+        qemu_input_event_sync();
     } else {
         fprintf(stderr, "send buttonevent: unknown button %d\n",
                 key.button);
     }
 }
 
+static void qubesgui_pv_mouse_set(DisplayChangeListener *dcl,
+                                  int x, int y, int on) {
+    QubesGuiState *qs = container_of(dcl, QubesGuiState, dcl);
+
+    qs->mouse_x = x;
+    qs->mouse_y = y;
+}
+
 static void handle_motion(QubesGuiState * qs)
 {
     struct msg_motion key;
-    int new_x, new_y;
+    int new_x, new_y, w, h;
 
     read_data(vchan, (char *) &key, sizeof(key));
     new_x = key.x;
     new_y = key.y;
 
-    if (new_x >= ds_get_width(qs->ds))
-        new_x = ds_get_width(qs->ds) - 1;
-    if (new_y >= ds_get_height(qs->ds))
-        new_y = ds_get_height(qs->ds) - 1;
-    if (kbd_mouse_is_absolute()) {
-        kbd_mouse_event(new_x * 0x7FFF / (ds_get_width(qs->ds) - 1),
-                        new_y * 0x7FFF / (ds_get_height(qs->ds) - 1),
-                        0,    /* TODO? */
-                        qs->buttons);
+    w = surface_width(qs->surface);
+    h = surface_height(qs->surface);
+
+    if (new_x >= w)
+        new_x = w - 1;
+    if (new_y >= h)
+        new_y = h - 1;
+
+    if (qemu_input_is_absolute()) {
+        qemu_input_queue_abs(qs->dcl.con, INPUT_AXIS_X, new_x, w);
+        qemu_input_queue_abs(qs->dcl.con, INPUT_AXIS_Y, new_y, h);
     } else {
-        kbd_mouse_event(new_x - qs->x, new_y - qs->y, 0,    /* TODO? */
-                qs->buttons);
+        // Relative mode can't really work since dom0 don't grab the
+        // mouse for this window. Therefore there will be always an
+        // offset and some speed difference in relative mode. For the
+        // case somebody really needs relative mode (for example
+        // because of tablet driver problems) we speed the movement up
+        // so that the real cursor can stay in the dom0 window while
+        // moving on the virtual screen.
+
+        qemu_input_queue_rel(qs->dcl.con, INPUT_AXIS_X,
+                             (new_x - qs->mouse_x)*2);
+        qemu_input_queue_rel(qs->dcl.con, INPUT_AXIS_Y,
+                             (new_y - qs->mouse_y)*2);
     }
-    qs->x = new_x;
-    qs->y = new_y;
+
+    qs->mouse_x = new_x;
+    qs->mouse_y = new_y;
+
+    qemu_input_event_sync();
 }
 
 
@@ -557,7 +570,8 @@ static const DisplayChangeListenerOps dcl_ops = {
     .dpy_gfx_update = qubesgui_pv_update,
     .dpy_gfx_switch = qubesgui_pv_switch,
     .dpy_gfx_check_format = qubesgui_pv_check_format,
-    .dpy_refresh = qubesgui_pv_refresh
+    .dpy_refresh = qubesgui_pv_refresh,
+    .dpy_mouse_set = qubesgui_pv_mouse_set
 };
 
 int qubesgui_pv_display_init(int log_level)
