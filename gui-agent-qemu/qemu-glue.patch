@@ -45,7 +45,7 @@
 +
 +            if (strstart(opts, ",log=", &nextopt)) {
 +                opts = nextopt;
-+                qubesgui_log_level = strtol(opts, &nextopt, 0);
++                qubesgui_log_level = strtol(opts, (char **) &nextopt, 0);
 +                if (nextopt == opts) {
 +                    goto invalid_qubesgui_args;
 +                }
