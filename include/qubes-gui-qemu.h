@@ -65,22 +65,22 @@
 typedef struct QubesGuiState {
     void *nonshared_vram;
     struct DisplayState *ds;
-	int log_level;
-	libvchan_t *vchan;
-	/* current message, keep here b/c  */
-	struct msg_hdr hdr;
-	/* amount of data to discard */
-	int vchan_data_to_discard;
+    int log_level;
+    libvchan_t *vchan;
+    /* current message, keep here b/c  */
+    struct msg_hdr hdr;
+    /* amount of data to discard */
+    int vchan_data_to_discard;
 
-	char *clipboard_data;
-	int clipboard_data_len;
-	int x;
-	int y;
-	int z; /* TODO */
-	int buttons;
-	int init_done;
-	int init_state;
-	unsigned char local_keys[32];
+    char *clipboard_data;
+    int clipboard_data_len;
+    int x;
+    int y;
+    int z; /* TODO */
+    int buttons;
+    int init_done;
+    int init_state;
+    unsigned char local_keys[32];
 } QubesGuiState;
 
 int qubesgui_pv_display_init(struct DisplayState *ds);
