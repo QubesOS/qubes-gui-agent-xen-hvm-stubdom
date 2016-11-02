@@ -485,92 +485,90 @@ static void qubesgui_message_handler(void *opaque)
 	}
 
 	write_data(vchan, NULL, 0);	// trigger write of queued data, if any present
-	if (libvchan_data_ready(vchan) == 0) {
-		return;
-	}
-
-	if (!qs->hdr.type) {
-		int hdr_size;
-		/* read the header if not already done */
-		hdr_size = read_data(vchan, (char *) &qs->hdr, sizeof(qs->hdr));
-		if (hdr_size != sizeof(qs->hdr)) {
-			fprintf(stderr, "qubes_gui: got incomplete header (%d instead of %lu)\n",
-					hdr_size, sizeof(qs->hdr));
+	while (libvchan_data_ready(vchan) > 0) {
+		if (!qs->hdr.type) {
+			int hdr_size;
+			/* read the header if not already done */
+			hdr_size = read_data(vchan, (char *) &qs->hdr, sizeof(qs->hdr));
+			if (hdr_size != sizeof(qs->hdr)) {
+				fprintf(stderr, "qubes_gui: got incomplete header (%d instead of %lu)\n",
+						hdr_size, sizeof(qs->hdr));
+			}
 		}
-	}
 
-	if (qs->hdr.type && qs->vchan_data_to_discard < 0) {
-		/* got header, check the data */
+		if (qs->hdr.type && qs->vchan_data_to_discard < 0) {
+			/* got header, check the data */
 
-		/* fast path for not supported messages */
+			/* fast path for not supported messages */
+			switch (qs->hdr.type) {
+				case MSG_KEYPRESS:
+				case MSG_BUTTON:
+				case MSG_MOTION:
+				case MSG_KEYMAP_NOTIFY:
+				case MSG_CONFIGURE:
+					/* supported - handled later */
+					break;
+				default:
+					fprintf(stderr, "qubes_gui: got unknown msg type %d, ignoring\n",
+							qs->hdr.type);
+				case MSG_CLIPBOARD_REQ:
+				case MSG_CLIPBOARD_DATA:
+				case MSG_MAP:
+				case MSG_CLOSE:
+				case MSG_CROSSING:
+				case MSG_FOCUS:
+				case MSG_EXECUTE:
+					qs->vchan_data_to_discard = qs->hdr.untrusted_len;
+			}
+		}
+
+		if (qs->vchan_data_to_discard >= 0) {
+			while (libvchan_data_ready(vchan) && qs->vchan_data_to_discard) {
+				qs->vchan_data_to_discard -= libvchan_read(vchan, discard,
+						min(qs->vchan_data_to_discard, sizeof(discard)));
+			}
+			if (!qs->vchan_data_to_discard) {
+				/* whole message "processed" */
+				qs->hdr.type = 0;
+				/* -1 to distinguish between "0 bytes to discard" and "do not
+				 * discard this data" */
+				qs->vchan_data_to_discard = -1;
+			}
+			continue;
+		}
+
+		/* WARNING: here is an assumption that every payload (of supported
+		 * message) will fit into vchan buffer; for now it is true, but once
+		 * this agent will start support for bigger messages, some local
+		 * buffering needs to be done */
+		if (libvchan_data_ready(vchan) < qs->hdr.untrusted_len) {
+			/* wait for data */
+			return;
+		}
+
 		switch (qs->hdr.type) {
-			case MSG_KEYPRESS:
-			case MSG_BUTTON:
-			case MSG_MOTION:
-			case MSG_KEYMAP_NOTIFY:
-			case MSG_CONFIGURE:
-				/* supported - handled later */
-				break;
-			default:
-				fprintf(stderr, "qubes_gui: got unknown msg type %d, ignoring\n",
-						qs->hdr.type);
-			case MSG_CLIPBOARD_REQ:
-			case MSG_CLIPBOARD_DATA:
-			case MSG_MAP:
-			case MSG_CLOSE:
-			case MSG_CROSSING:
-			case MSG_FOCUS:
-			case MSG_EXECUTE:
-				qs->vchan_data_to_discard = qs->hdr.untrusted_len;
+		case MSG_KEYPRESS:
+			handle_keypress(qs);
+			break;
+		case MSG_BUTTON:
+			handle_button(qs);
+			break;
+		case MSG_MOTION:
+			handle_motion(qs);
+			break;
+		case MSG_KEYMAP_NOTIFY:
+			handle_keymap_notify(qs);
+			break;
+		case MSG_CONFIGURE:
+			handle_configure(qs);
+			break;
+		default:
+			fprintf(stderr, "BUG: qubes_gui: got unknown msg type %d, but not ignored earlier\n",
+				qs->hdr.type);
+			exit(1);
 		}
+		qs->hdr.type = 0;
 	}
-
-	if (qs->vchan_data_to_discard >= 0) {
-		while (libvchan_data_ready(vchan) && qs->vchan_data_to_discard) {
-			qs->vchan_data_to_discard -= libvchan_read(vchan, discard,
-					min(qs->vchan_data_to_discard, sizeof(discard)));
-		}
-		if (!qs->vchan_data_to_discard) {
-			/* whole message "processed" */
-			qs->hdr.type = 0;
-			/* -1 to distinguish between "0 bytes to discard" and "do not
-			 * discard this data" */
-			qs->vchan_data_to_discard = -1;
-		}
-		return;
-	}
-
-	/* WARNING: here is an assumption that every payload (of supported
-	 * message) will fit into vchan buffer; for now it is true, but once
-	 * this agent will start support for bigger messages, some local
-	 * buffering needs to be done */
-	if (libvchan_data_ready(vchan) < qs->hdr.untrusted_len) {
-		/* wait for data */
-		return;
-	}
-
-	switch (qs->hdr.type) {
-	case MSG_KEYPRESS:
-		handle_keypress(qs);
-		break;
-	case MSG_BUTTON:
-		handle_button(qs);
-		break;
-	case MSG_MOTION:
-		handle_motion(qs);
-		break;
-	case MSG_KEYMAP_NOTIFY:
-		handle_keymap_notify(qs);
-		break;
-	case MSG_CONFIGURE:
-		handle_configure(qs);
-		break;
-	default:
-		fprintf(stderr, "BUG: qubes_gui: got unknown msg type %d, but not ignored earlier\n",
-			qs->hdr.type);
-		exit(1);
-	}
-	qs->hdr.type = 0;
 }
 
 static DisplaySurface *qubesgui_create_displaysurface(int width,
