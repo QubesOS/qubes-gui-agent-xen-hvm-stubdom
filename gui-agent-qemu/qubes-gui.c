@@ -233,8 +233,8 @@ void process_pv_resize(QubesGuiState * qs, int width, int height,
 			"handle resize  w=%d h=%d\n", width, height);
 	hdr.type = MSG_CONFIGURE;
 	hdr.window = QUBES_MAIN_WINDOW;
-	conf.x = qs->x;
-	conf.y = qs->y;
+	conf.x = qs->window_x;
+	conf.y = qs->window_y;
 	conf.width = width;
 	conf.height = height;
 	conf.override_redirect = 0;
@@ -249,10 +249,10 @@ void handle_configure(QubesGuiState * qs)
 	read_data(vchan, (char *) &r, sizeof(r));
 	fprintf(stderr,
 		"configure msg, x/y %d %d (was %d %d), w/h %d %d\n",
-		r.x, r.y, qs->x, qs->y, r.width, r.height);
+		r.x, r.y, qs->window_x, qs->window_y, r.width, r.height);
 
-	qs->x = r.x;
-	qs->y = r.y;
+	qs->window_x = r.x;
+	qs->window_y = r.y;
 }
 
 int is_bitset(unsigned char *keys, int num)

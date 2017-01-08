@@ -74,10 +74,15 @@ typedef struct QubesGuiState {
 
 	char *clipboard_data;
 	int clipboard_data_len;
+    /* mouse position */
 	int x;
 	int y;
 	int z; /* TODO */
 	int buttons;
+    /* window position in dom0 - required for MSG_CONFIGURE, just replay what
+     * dom0 has sent previously */
+    int window_x;
+    int window_y;
 	int init_done;
 	int init_state;
 	unsigned char local_keys[32];
