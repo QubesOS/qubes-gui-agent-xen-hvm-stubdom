@@ -9,6 +9,7 @@
 
 #include <qubes-gui-qemu.h>
 #include <qubes-gui-protocol.h>
+#include <xenctrl.h>
 #include <libvchan.h>
 #include <u2mfnlib.h>
 #include <txrx.h>
