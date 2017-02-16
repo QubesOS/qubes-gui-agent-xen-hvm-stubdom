@@ -379,7 +379,21 @@ static void handle_motion(QubesGuiState * qs)
     qemu_input_event_sync();
 }
 
-
+static bool is_simple_modifier_key(int keycode) {
+    switch (keycode) {
+        case 50: // Shift_L
+        case 62: // Shift_R
+        case 37: // Control_L
+        case 105: // Control_R
+        case 133: // Super_L
+        case 134: // Super_R
+        case 64: // Alt_L
+        case 108: // ISO_Level3_Shift (AltGr)
+            return true;
+        default:
+            return false;
+    }
+}
 
 static void handle_keymap_notify(QubesGuiState * qs)
 {
@@ -387,12 +401,15 @@ static void handle_keymap_notify(QubesGuiState * qs)
     unsigned char remote_keys[32];
     read_struct(qs->vchan, remote_keys);
     for (i = 0; i < 256; i++) {
-        if (!is_bitset(remote_keys, i) && is_bitset(qs->local_keys, i)) {
-            send_keycode(qs, i, 1);
+        bool remote = is_bitset(remote_keys, i);
+        bool local = is_bitset(qs->local_keys, i);
+        if (remote != local && (!remote || is_simple_modifier_key(i))) {
+            send_keycode(qs, i, !remote);
             if (qs->log_level > 1)
                 fprintf(stderr,
-                        "handle_keymap_notify: unsetting key %d\n",
-                        i);
+                        "handle_keymap_notify: sending key %d %s\n",
+                        i,
+                        is_bitset(remote_keys, i) ? "down" : "up");
         }
     }
 }
