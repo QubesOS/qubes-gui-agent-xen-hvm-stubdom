@@ -9,9 +9,9 @@ diff -ru xen-4.1.1/tools/ioemu-qemu-xen/vl.c xen-4.1.1/tools/ioemu-qemu-xen/vl.c
 +#include <qubes-gui-qemu.h>
 +#endif
 +
+ #include <assert.h>
  #include <unistd.h>
  #include <fcntl.h>
- #include <signal.h>
 @@ -5984,7 +5988,9 @@
          }
      } else { 
