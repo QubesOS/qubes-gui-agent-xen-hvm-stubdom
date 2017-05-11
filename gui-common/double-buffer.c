@@ -23,6 +23,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <double-buffer.h>
 
 static char *buffer;
 static int buffer_size;
@@ -30,14 +31,14 @@ static int data_offset;
 static int data_count;
 #define BUFFER_SIZE_MIN 8192
 #define BUFFER_SIZE_MAX 10000000
-void double_buffer_init()
+void double_buffer_init(void)
 {
-	buffer = malloc(BUFFER_SIZE_MIN);
-	if (!buffer) {
-		fprintf(stderr, "malloc");
-		exit(1);
-	}
-	buffer_size = BUFFER_SIZE_MIN;
+    buffer = malloc(BUFFER_SIZE_MIN);
+    if (!buffer) {
+        fprintf(stderr, "malloc");
+        exit(1);
+    }
+    buffer_size = BUFFER_SIZE_MIN;
 }
 // We assume that the only common case when we need to enlarge the buffer
 // is when we send a single large blob (after Ctrl-Shift-V).
@@ -47,63 +48,62 @@ void double_buffer_init()
 
 void double_buffer_append(char *buf, int size)
 {
-	if (size + data_offset + data_count > buffer_size) {
-		int newsize = data_count + size + BUFFER_SIZE_MIN;
-		char *newbuf;
-		if (newsize > BUFFER_SIZE_MAX) {
-			fprintf(stderr,
-				"double_buffer_append: offset=%d, data_count=%d, req_size=%d\n",
-				data_offset, data_count, size);
-			system
-			    ("xmessage -button OK:2 'Out of buffer space (AppVM refuses to read data?), terminating...'");
-			exit(1);
-		}
-		newbuf = malloc(newsize);
-		if (!newbuf) {
-			fprintf(stderr, "malloc");
-			exit(1);
-		}
-		memcpy(newbuf, buffer + data_offset, data_count);
-		free(buffer);
-		buffer = newbuf;
-		buffer_size = newsize;
-		data_offset = 0;
-	}
-	memcpy(buffer + data_offset + data_count, buf, size);
-	data_count += size;
+    if (size + data_offset + data_count > buffer_size) {
+        int newsize = data_count + size + BUFFER_SIZE_MIN;
+        char *newbuf;
+        if (newsize > BUFFER_SIZE_MAX) {
+            fprintf(stderr,
+                    "double_buffer_append failed: "
+                    "offset=%d, data_count=%d, req_size=%d\n",
+                    data_offset, data_count, size);
+            exit(1);
+        }
+        newbuf = malloc(newsize);
+        if (!newbuf) {
+            fprintf(stderr, "malloc");
+            exit(1);
+        }
+        memcpy(newbuf, buffer + data_offset, data_count);
+        free(buffer);
+        buffer = newbuf;
+        buffer_size = newsize;
+        data_offset = 0;
+    }
+    memcpy(buffer + data_offset + data_count, buf, size);
+    data_count += size;
 }
 
-int double_buffer_datacount()
+int double_buffer_datacount(void)
 {
-	return data_count;
+    return data_count;
 }
 
-char *double_buffer_data()
+char *double_buffer_data(void)
 {
-	return buffer + data_offset;
+    return buffer + data_offset;
 }
 
 void double_buffer_substract(int count)
 {
-	if (count > data_count) {
-		fprintf(stderr,
-			"double_buffer_substract, count=%d, data_count=%d\n",
-			count, data_count);
-		exit(1);
-	}
-	data_count -= count;
-	data_offset += count;
-	if (data_count == 0) {
-		if (buffer_size > BUFFER_SIZE_MIN) {
-			free(buffer);
-			buffer = malloc(BUFFER_SIZE_MIN);
-			if (!buffer) {
-				fprintf(stderr, "malloc");
-				exit(1);
-			}
+    if (count > data_count) {
+        fprintf(stderr,
+                "double_buffer_substract, count=%d, data_count=%d\n",
+                count, data_count);
+        exit(1);
+    }
+    data_count -= count;
+    data_offset += count;
+    if (data_count == 0) {
+        if (buffer_size > BUFFER_SIZE_MIN) {
+            free(buffer);
+            buffer = malloc(BUFFER_SIZE_MIN);
+            if (!buffer) {
+                fprintf(stderr, "malloc");
+                exit(1);
+            }
 
-		}
-		data_offset = 0;
-		buffer_size = BUFFER_SIZE_MIN;
-	}
+        }
+        data_offset = 0;
+        buffer_size = BUFFER_SIZE_MIN;
+    }
 }

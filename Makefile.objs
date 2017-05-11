@@ -1,0 +1,5 @@
+QUBES_GUI_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
+
+QUBES_GUI_CFLAGS := -I/usr/include $(shell pkg-config --cflags vchan-xen) -I$(QUBES_GUI_DIR)/include
+
+common-obj-y += gui-agent-qemu/ gui-common/
