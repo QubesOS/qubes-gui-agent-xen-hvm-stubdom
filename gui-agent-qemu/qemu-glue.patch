@@ -1,6 +1,6 @@
 --- a/Makefile.objs
 +++ b/Makefile.objs
-@@ -60,6 +60,7 @@ common-obj-y += accel.o
+@@ -56,6 +56,7 @@ common-obj-y += hw/
  common-obj-y += replay/
  
  common-obj-y += ui/
@@ -18,7 +18,7 @@
  #include "ui/input.h"
  #include "sysemu/sysemu.h"
  #include "sysemu/numa.h"
-@@ -152,6 +153,7 @@ static int rtc_date_offset = -1; /* -1 m
+@@ -154,6 +155,7 @@ static int rtc_date_offset = -1; /* -1 m
  QEMUClockType rtc_clock;
  int vga_interface_type = VGA_NONE;
  static int full_screen = 0;
@@ -26,15 +26,15 @@
  static int no_frame = 0;
  int no_quit = 0;
  static bool grab_on_hover;
-@@ -2049,6 +2051,7 @@ typedef enum DisplayType {
-     DT_SDL,
+@@ -2071,6 +2073,7 @@ typedef enum DisplayType {
      DT_COCOA,
      DT_GTK,
+     DT_EGL,
 +    DT_QUBESGUI,
      DT_NONE,
  } DisplayType;
  
-@@ -2168,6 +2171,24 @@ static DisplayType select_display(const
+@@ -2199,6 +2202,24 @@ static DisplayType select_display(const
          error_report("GTK support is disabled");
          exit(1);
  #endif
@@ -59,7 +59,7 @@
      } else if (strstart(p, "none", &opts)) {
          display = DT_NONE;
      } else {
-@@ -4637,6 +4658,9 @@ int main(int argc, char **argv, char **e
+@@ -4715,6 +4736,9 @@ int main(int argc, char **argv, char **e
      case DT_GTK:
          gtk_display_init(ds, full_screen, grab_on_hover);
          break;
