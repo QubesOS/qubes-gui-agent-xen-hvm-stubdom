@@ -10,8 +10,8 @@
 #include <qubes-gui-qemu.h>
 #include <qubes-gui-protocol.h>
 #include <xenctrl.h>
+#include <xengnttab.h>
 #include <libvchan.h>
-#include <u2mfnlib.h>
 #include <txrx.h>
 
 /* from /usr/include/X11/X.h */
@@ -42,6 +42,9 @@
 #define PBaseSize       (1L << 8) /* program specified base for incrementing */
 #define PWinGravity     (1L << 9) /* program specified window gravity */
 
+// qubesgui_alloc_surface_data() has no ref to the gui state and is used before
+// initializing the display so this needs to be global.
+uint32_t qubesgui_domid = ~0;
 
 typedef struct QubesGuiState {
     DisplayChangeListener dcl;
@@ -62,7 +65,6 @@ typedef struct QubesGuiState {
     int init_done;
     int init_state;
     unsigned char local_keys[32];
-    int u2mfn_fd;
     int led_state;
 } QubesGuiState;
 
@@ -109,55 +111,33 @@ static void qubes_create_window(QubesGuiState * qs, int w, int h)
     write_message(qs->vchan, hdr, crt);
 }
 
-static void send_pixmap_mfns(QubesGuiState * qs)
+static void send_pixmap_grant_refs(QubesGuiState * qs)
 {
-    struct shm_cmd shmcmd;
+    size_t n;
     struct msg_hdr hdr;
-    uint32_t *mfns;
-    int n;
-    int i;
-    void *data;
-    void *data_aligned;
-    int offset;
+    struct msg_window_dump_hdr wd_hdr;
 
-    data = surface_data(qs->surface);
-
-    offset = (long) data & (XC_PAGE_SIZE - 1);
-    data_aligned = (void *) ((long) data & ~(XC_PAGE_SIZE - 1));
-
-    /* XXX: hardcoded 4 bytes per pixel - gui-daemon doesn't handle other bpp */
-    n = (4 * surface_width(qs->surface) * surface_height(qs->surface) +
-         offset + (XC_PAGE_SIZE-1)) / XC_PAGE_SIZE;
-    if (mlock(data_aligned, n * XC_PAGE_SIZE) == -1) {
-        perror("mlock failed");
+    if (surface_xen_refs(qs->surface) == NULL) {
+        fprintf(stderr, "Can't dump surface without grant refs allocation!\n");
         return;
     }
-    mfns = g_new(uint32_t, n);
-    if (!mfns) {
-        fprintf(stderr,
-                "Cannot allocate mfns array, %lu bytes needed\n",
-                n * sizeof(*mfns));
-        return;
-    }
-    fprintf(stderr,
-            "dumping mfns: n=%d, w=%d, h=%d\n",
-            n, surface_width(qs->surface), surface_height(qs->surface));
-    for (i = 0; i < n; i++)
-        u2mfn_get_mfn_for_page_with_fd(qs->u2mfn_fd,
-                (long) data_aligned + i * XC_PAGE_SIZE,
-                (int *) &mfns[i]);
-    hdr.type = MSG_MFNDUMP;
+
+    n = ((surface_width(qs->surface) * surface_height(qs->surface) * 4) +
+         XC_PAGE_SIZE - 1) >> XC_PAGE_SHIFT;
+
+    hdr.type = MSG_WINDOW_DUMP;
     hdr.window = QUBES_MAIN_WINDOW;
-    hdr.untrusted_len = sizeof(shmcmd) + n * sizeof(*mfns);
-    shmcmd.width = surface_width(qs->surface);
-    shmcmd.height = surface_height(qs->surface);
-    shmcmd.num_mfn = n;
-    shmcmd.off = offset;
-    shmcmd.bpp = 24;
+    hdr.untrusted_len = MSG_WINDOW_DUMP_HDR_LEN + n * SIZEOF_GRANT_REF;
+
+    wd_hdr.type = WINDOW_DUMP_TYPE_GRANT_REFS;
+    wd_hdr.width = surface_width(qs->surface);
+    wd_hdr.height = surface_height(qs->surface);
+    wd_hdr.bpp = 24;
+
     write_struct(qs->vchan, hdr);
-    write_struct(qs->vchan, shmcmd);
-    write_data(qs->vchan, (char *) mfns, n * sizeof(*mfns));
-    g_free(mfns);
+    write_struct(qs->vchan, wd_hdr);
+    write_data(qs->vchan, (char *) surface_xen_refs(qs->surface),
+               n * SIZEOF_GRANT_REF);
 }
 
 static void send_wmname(QubesGuiState * qs, const char *wmname)
@@ -217,7 +197,7 @@ static void process_pv_resize(QubesGuiState * qs)
         fprintf(stderr,
                 "handle resize  w=%d h=%d\n", conf.width, conf.height);
     write_message(qs->vchan, hdr, conf);
-    send_pixmap_mfns(qs);
+    send_pixmap_grant_refs(qs);
     send_wmhints(qs);
 }
 
@@ -598,12 +578,6 @@ int qubesgui_pv_display_init(int log_level)
     qs->init_state = 0;
     qs->log_level = log_level;
 
-    qs->u2mfn_fd = u2mfn_get_fd();
-    if (qs->u2mfn_fd == -1) {
-        perror("u2mfn_get_fd failed");
-        return -1;
-    }
-
     fprintf(stderr, "qubes_gui/init: %d\n", __LINE__);
     qs->dcl.ops = &dcl_ops;
     fprintf(stderr, "qubes_gui/init: %d\n", __LINE__);
@@ -611,8 +585,7 @@ int qubesgui_pv_display_init(int log_level)
     // already available.
     register_displaychangelistener(&qs->dcl);
 
-    /* FIXME: 0 here is hardcoded remote domain */
-    qs->vchan = peer_server_init(0, 6000);
+    qs->vchan = peer_server_init(qubesgui_domid, 6000);
     qemu_set_fd_handler(libvchan_fd_for_select(qs->vchan),
                         qubesgui_message_handler,
                         NULL,
@@ -658,10 +631,44 @@ static void qubesgui_init_connection(QubesGuiState * qs)
         send_wmname(qs, qemu_get_vm_name());
 
         fprintf(stderr, "qubes_gui/init: %d\n", __LINE__);
-        /* process_pv_resize will send mfns */
+        /* process_pv_resize will send grant refs */
         process_pv_resize(qs);
 
         qs->init_state++;
         qs->init_done = 1;
     }
+}
+
+static xengntshr_handle *xgs = NULL;
+
+uint8_t *qubesgui_alloc_surface_data(int width, int height, uint32_t **refs) {
+    size_t pages;
+    uint8_t *data;
+
+    if (qubesgui_domid == ~0) {
+        fprintf(stderr, "GUI domain id not set before first surface allocation!\n");
+        return NULL;
+    }
+   
+    pages = ((width * height * 4) + XC_PAGE_SIZE - 1) >> XC_PAGE_SHIFT;
+
+    *refs = calloc(pages, sizeof(uint32_t));
+    if (*refs == NULL)
+        return NULL;
+
+    if (xgs == NULL) {
+        xgs = xengntshr_open(NULL, 0);
+        if (xgs == NULL) {
+            fprintf(stderr, "Failed to open xengntshr!\n");
+            return NULL;
+        }
+    }
+
+    data = xengntshr_share_pages(xgs, qubesgui_domid, pages, *refs, 0);
+    if (data == NULL) {
+        fprintf(stderr, "Failes to allocate %zu grant pages!\n", pages);
+        return NULL;
+    }
+
+    return data;
 }

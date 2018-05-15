@@ -23,6 +23,8 @@
 
 /* header file for qemu in stubdom */
 
+extern uint32_t qubesgui_domid;
 int qubesgui_pv_display_init(int log_level);
+uint8_t *qubesgui_alloc_surface_data(int width, int height, uint32_t **refs);
 
 #endif /* _QUBES_GUI_QEMU_H */
