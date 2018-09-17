@@ -1,11 +1,11 @@
 /* based on gui-agent/vmside.c */
 
 #include <stdint.h>
-#include <qemu/osdep.h>
-#include <qemu-common.h>
-#include <ui/console.h>
-#include <ui/input.h>
-#include <qemu/main-loop.h>
+#include "qemu/osdep.h"
+#include "qemu-common.h"
+#include "ui/console.h"
+#include "ui/input.h"
+#include "qemu/main-loop.h"
 
 #include <qubes-gui-qemu.h>
 #include <qubes-gui-protocol.h>

@@ -1,16 +1,16 @@
 --- a/Makefile.objs
 +++ b/Makefile.objs
-@@ -56,6 +56,7 @@ common-obj-y += hw/
- common-obj-y += replay/
+@@ -115,6 +115,7 @@ common-obj-y += replay/
  
  common-obj-y += ui/
+ common-obj-m += ui/
 +common-obj-y += gui-agent/
  common-obj-y += bt-host.o bt-vhci.o
  bt-host.o-cflags := $(BLUEZ_CFLAGS)
  
 --- a/vl.c
 +++ b/vl.c
-@@ -76,6 +76,7 @@ int main(int argc, char **argv)
+@@ -72,6 +72,7 @@ int main(int argc, char **argv)
  #include "net/slirp.h"
  #include "monitor/monitor.h"
  #include "ui/console.h"
@@ -18,54 +18,95 @@
  #include "ui/input.h"
  #include "sysemu/sysemu.h"
  #include "sysemu/numa.h"
-@@ -154,6 +155,7 @@ static int rtc_date_offset = -1; /* -1 m
+@@ -151,6 +152,7 @@ static int rtc_utc = 1;
+ static int rtc_date_offset = -1; /* -1 means no change */
  QEMUClockType rtc_clock;
  int vga_interface_type = VGA_NONE;
- static int full_screen = 0;
 +static int qubesgui_log_level = 0;
- static int no_frame = 0;
- int no_quit = 0;
- static bool grab_on_hover;
-@@ -2071,6 +2073,7 @@ typedef enum DisplayType {
-     DT_COCOA,
-     DT_GTK,
-     DT_EGL,
-+    DT_QUBESGUI,
-     DT_NONE,
- } DisplayType;
+ static DisplayOptions dpy;
+ int no_frame;
+ static int num_serial_hds;
+@@ -2032,11 +2034,35 @@ static void parse_display_qapi(const cha
+     visit_free(v);
+ }
  
-@@ -2199,6 +2202,24 @@ static DisplayType select_display(const
-         error_report("GTK support is disabled");
-         exit(1);
- #endif
-+    } else if (strstart(p, "qubes-gui", &opts)) {
-+        display = DT_QUBESGUI;
-+        while (*opts) {
-+            const char *nextopt;
+-static void parse_display(const char *p)
++typedef enum LegacyDisplayType {
++    DT_NOLEGACY,
++    DT_QUBESGUI,
++} LegacyDisplayType;
 +
-+            if (strstart(opts, ",log=", &nextopt)) {
-+                opts = nextopt;
-+                qubesgui_log_level = strtol(opts, (char **) &nextopt, 0);
-+                if (nextopt == opts) {
-+                    goto invalid_qubesgui_args;
-+                }
-+            } else {
-+            invalid_qubesgui_args:
-+                error_report("invalid Qubes GUI option string");
-+                exit(1);
-+            }
-+            opts = nextopt;
-+        }
-     } else if (strstart(p, "none", &opts)) {
-         display = DT_NONE;
++static LegacyDisplayType parse_display(const char *p)
+ {
+     const char *opts;
++    LegacyDisplayType display = DT_NOLEGACY;
+ 
+-    if (strstart(p, "sdl", &opts)) {
++    if (strstart(p, "qubes-gui", &opts)) {
++      display = DT_QUBESGUI;
++      while (*opts) {
++          const char *nextopt;
++
++          if (strstart(opts, ",log=", &nextopt)) {
++              opts = nextopt;
++              qubesgui_log_level = strtol(opts, (char **) &nextopt, 0);
++              if (nextopt == opts) {
++                  goto invalid_qubesgui_args;
++              }
++          } else {
++          invalid_qubesgui_args:
++              error_report("invalid Qubes GUI option string");
++              exit(1);
++          }
++          opts = nextopt;
++      }
++    } else if (strstart(p, "sdl", &opts)) {
+         /*
+          * sdl DisplayType needs hand-crafted parser instead of
+          * parse_display_qapi() due to some options not in
+@@ -2125,6 +2151,8 @@ static void parse_display(const char *p)
      } else {
-@@ -4715,6 +4736,9 @@ int main(int argc, char **argv, char **e
-     case DT_GTK:
-         gtk_display_init(ds, full_screen, grab_on_hover);
-         break;
+         parse_display_qapi(p);
+     }
++
++    return display;
+ }
+ 
+ static int balloon_parse(const char *arg)
+@@ -2931,6 +2959,7 @@ int main(int argc, char **argv, char **e
+     const char *incoming = NULL;
+     bool userconfig = true;
+     bool nographic = false;
++    LegacyDisplayType display_type = DT_NOLEGACY;
+     int display_remote = 0;
+     const char *log_mask = NULL;
+     const char *log_file = NULL;
+@@ -3121,7 +3150,7 @@ int main(int argc, char **argv, char **e
+                 }
+                 break;
+             case QEMU_OPTION_display:
+-                parse_display(optarg);
++                display_type = parse_display(optarg);
+                 break;
+             case QEMU_OPTION_nographic:
+                 olist = qemu_find_opts("machine");
+@@ -4571,7 +4600,18 @@ int main(int argc, char **argv, char **e
+ 
+     /* init local displays */
+     ds = init_displaystate();
+-    qemu_display_init(ds, &dpy);
++
++    /* init local displays */
++    switch (display_type) {
++    case DT_NOLEGACY:
++        qemu_display_init(ds, &dpy);
++        break;
 +    case DT_QUBESGUI:
 +        qubesgui_pv_display_init(qubesgui_log_level);
 +        break;
-     default:
-         break;
-     }
++    default:
++        break;
++    }
+ 
+     /* must be after terminal init, SDL library changes signal handlers */
+     os_setup_signal_handling();
