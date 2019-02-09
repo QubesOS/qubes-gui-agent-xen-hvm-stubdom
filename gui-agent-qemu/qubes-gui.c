@@ -1,11 +1,11 @@
 /* based on gui-agent/vmside.c */
 
 #include <stdint.h>
-#include <qemu/osdep.h>
-#include <qemu-common.h>
-#include <ui/console.h>
-#include <ui/input.h>
-#include <qemu/main-loop.h>
+#include "qemu/osdep.h"
+#include "qemu-common.h"
+#include "ui/console.h"
+#include "ui/input.h"
+#include "qemu/main-loop.h"
 
 #include <qubes-gui-qemu.h>
 #include <qubes-gui-protocol.h>
@@ -566,17 +566,17 @@ static const DisplayChangeListenerOps dcl_ops = {
     .dpy_mouse_set = qubesgui_pv_mouse_set
 };
 
-int qubesgui_pv_display_init(int log_level)
+static void qubesgui_pv_display_init(DisplayState *ds, DisplayOptions *o)
 {
 
     fprintf(stderr, "qubes_gui/init: %d\n", __LINE__);
     QubesGuiState *qs = g_new0(QubesGuiState, 1);
     if (!qs)
-        return -1;
+        return;
 
     qs->init_done = 0;
     qs->init_state = 0;
-    qs->log_level = log_level;
+    qs->log_level = o->u.qubes_gui.log_level;
 
     fprintf(stderr, "qubes_gui/init: %d\n", __LINE__);
     qs->dcl.ops = &dcl_ops;
@@ -593,8 +593,6 @@ int qubesgui_pv_display_init(int log_level)
     qubesgui_init_connection(qs);
 
     qemu_add_led_event_handler(qubesgui_pv_kbd_led_event, qs);
-
-    return 0;
 }
 
 static void qubesgui_init_connection(QubesGuiState * qs)
@@ -672,3 +670,20 @@ uint8_t *qubesgui_alloc_surface_data(int width, int height, uint32_t **refs) {
 
     return data;
 }
+
+static void qubesgui_display_early_init(DisplayOptions *opts) {
+    assert(opts->type == DISPLAY_TYPE_QUBES_GUI);
+    qubesgui_domid = opts->u.qubes_gui.domid;
+}
+
+static QemuDisplay qemu_display_qubesgui = {
+    .type   = DISPLAY_TYPE_QUBES_GUI,
+    .init   = qubesgui_pv_display_init,
+    .early_init = qubesgui_display_early_init,
+};
+
+static void register_qubesgui(void) {
+    qemu_display_register(&qemu_display_qubesgui);
+}
+
+type_init(register_qubesgui);
