@@ -2,7 +2,7 @@ common-obj-y += qubes-gui.o
 qubes-gui.o-cflags += $(QUBES_GUI_CFLAGS)
 qubes-gui.o-libs += $(shell pkg-config --libs vchan-xen) -lu2mfn
 
-GENERATED_FILES += $(QUBES_GUI_DIR)/gui-agent-qemu/qubes-keycode2scancode.c
+generated-files-y += $(QUBES_GUI_DIR)/gui-agent-qemu/qubes-keycode2scancode.c
 
 $(QUBES_GUI_DIR)/gui-agent-qemu/qubes-keycode2scancode.c: $(QUBES_GUI_DIR)/gui-agent-qemu/gen-keycode2scancode
 	$< qubes_keycode2scancode > $@

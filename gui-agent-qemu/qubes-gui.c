@@ -144,7 +144,7 @@ static void send_wmname(QubesGuiState * qs, const char *wmname)
 {
     struct msg_hdr hdr;
     struct msg_wmname msg;
-    strncpy(msg.data, wmname, sizeof(msg.data));
+    strncpy(msg.data, wmname, sizeof(msg.data)-1);
     hdr.window = QUBES_MAIN_WINDOW;
     hdr.type = MSG_WMNAME;
     write_message(qs->vchan, hdr, msg);
