@@ -491,10 +491,6 @@ static void qubesgui_message_handler(void *opaque)
                 case MSG_CONFIGURE:
                     /* supported - handled later */
                     break;
-                default:
-                    fprintf(stderr,
-                            "qubes_gui: got unknown msg type %d, ignoring\n",
-                            qs->hdr.type);
                 case MSG_CLIPBOARD_REQ:
                 case MSG_CLIPBOARD_DATA:
                 case MSG_MAP:
@@ -503,6 +499,11 @@ static void qubesgui_message_handler(void *opaque)
                 case MSG_FOCUS:
                 case MSG_EXECUTE:
                     qs->vchan_data_to_discard = qs->hdr.untrusted_len;
+                    /* fallthrough */
+                default:
+                    fprintf(stderr,
+                            "qubes_gui: got unknown msg type %d, ignoring\n",
+                            qs->hdr.type);
             }
         }
 
