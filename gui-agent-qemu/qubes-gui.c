@@ -7,12 +7,12 @@
 #include "ui/input.h"
 #include "qemu/main-loop.h"
 
-#include <qubes-gui-qemu.h>
+#include "qubes-gui-qemu.h"
 #include <qubes-gui-protocol.h>
 #include <xenctrl.h>
 #include <xengnttab.h>
 #include <libvchan.h>
-#include <txrx.h>
+#include "txrx.h"
 
 /* from /usr/include/X11/X.h */
 #define KeyPress               2

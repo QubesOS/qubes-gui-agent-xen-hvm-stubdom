@@ -23,7 +23,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <double-buffer.h>
+#include "double-buffer.h"
 
 static char *buffer;
 static int buffer_size;

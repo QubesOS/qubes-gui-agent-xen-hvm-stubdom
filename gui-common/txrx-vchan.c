@@ -26,7 +26,7 @@
 #include <sys/select.h>
 #include <xenstore.h>
 #include "double-buffer.h"
-#include <txrx.h>
+#include "txrx.h"
 
 int double_buffered = 0;
 

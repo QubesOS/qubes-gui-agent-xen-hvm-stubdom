@@ -1,3 +1,0 @@
-common-obj-y += double-buffer.o txrx-vchan.o
-txrx-vchan.o-cflags += $(QUBES_GUI_CFLAGS)
-double-buffer.o-cflags += $(QUBES_GUI_CFLAGS)
