@@ -396,7 +396,7 @@ static void handle_keymap_notify(QubesGuiState * qs)
 
 static void send_protocol_version(QubesGuiState *qs)
 {
-    uint32_t version = QUBES_GUID_PROTOCOL_VERSION;
+    uint32_t version = QUBES_GUI_PROTOCOL_VERSION_STUBDOM;
     write_struct(qs->vchan, version);
 }
 
