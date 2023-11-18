@@ -2,7 +2,8 @@
 
 #include <stdint.h>
 #include "qemu/osdep.h"
-#include "qemu-common.h"
+#include "qemu-main.h"
+#include "sysemu/sysemu.h"
 #include "ui/console.h"
 #include "ui/input.h"
 #include "qemu/main-loop.h"
