@@ -336,7 +336,7 @@ static void handle_motion(QubesGuiState * qs)
     if (new_y >= h)
         new_y = h - 1;
 
-    if (qemu_input_is_absolute()) {
+    if (qemu_input_is_absolute(qs->dcl.con)) {
         qemu_input_queue_abs(qs->dcl.con, INPUT_AXIS_X, new_x, 0, w - 1);
         qemu_input_queue_abs(qs->dcl.con, INPUT_AXIS_Y, new_y, 0, h - 1);
     } else {
