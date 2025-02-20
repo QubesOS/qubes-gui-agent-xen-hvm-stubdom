@@ -581,6 +581,7 @@ static void qubesgui_pv_display_init(DisplayState *ds, DisplayOptions *o)
     qs->log_level = o->u.qubes_gui.log_level;
 
     fprintf(stderr, "qubes_gui/init: %d\n", __LINE__);
+    qs->dcl.con = qemu_console_lookup_default();
     qs->dcl.ops = &dcl_ops;
     fprintf(stderr, "qubes_gui/init: %d\n", __LINE__);
     // This also calls qubesgui_pv_switch() which sets the surface if
