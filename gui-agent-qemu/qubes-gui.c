@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include "qemu/osdep.h"
 #include "qemu-main.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "ui/console.h"
 #include "ui/input.h"
 #include "qemu/main-loop.h"
@@ -67,6 +67,7 @@ typedef struct QubesGuiState {
     int init_state;
     unsigned char local_keys[32];
     int led_state;
+    Notifier led_notifier;
 } QubesGuiState;
 
 static void qubesgui_init_connection(QubesGuiState *qs);
@@ -251,8 +252,9 @@ static void send_keycode(QubesGuiState * qs, int keycode, int release)
     qemu_input_event_send_key_number(qs->dcl.con, scancode, !release);
 }
 
-static void qubesgui_pv_kbd_led_event(void *opaque, int led_state) {
-    QubesGuiState *qs = opaque;
+static void qubesgui_pv_kbd_led_event(Notifier *notifier, void *data) {
+    QubesGuiState *qs = container_of(notifier, QubesGuiState, led_notifier);
+    uint32_t led_state = qemu_input_get_leds_mask(qs->dcl.con);
 
     qs->led_state = led_state;
 }
@@ -312,7 +314,7 @@ static void handle_button(QubesGuiState * qs)
 }
 
 static void qubesgui_pv_mouse_set(DisplayChangeListener *dcl,
-                                  int x, int y, int on) {
+                                  int x, int y, bool on) {
     QubesGuiState *qs = container_of(dcl, QubesGuiState, dcl);
 
     qs->mouse_x = x;
@@ -430,7 +432,7 @@ static void qubesgui_pv_switch(DisplayChangeListener * dcl, DisplaySurface * sur
 
 static void qubesgui_pv_refresh(DisplayChangeListener * dcl)
 {
-    graphic_hw_update(dcl->con);
+    qemu_console_hw_update(dcl->con);
 }
 
 static bool qubesgui_pv_check_format(DisplayChangeListener *dcl,
@@ -581,12 +583,13 @@ static void qubesgui_pv_display_init(DisplayState *ds, DisplayOptions *o)
     qs->log_level = o->u.qubes_gui.log_level;
 
     fprintf(stderr, "qubes_gui/init: %d\n", __LINE__);
-    qs->dcl.con = qemu_console_lookup_default();
-    qs->dcl.ops = &dcl_ops;
     fprintf(stderr, "qubes_gui/init: %d\n", __LINE__);
     // This also calls qubesgui_pv_switch() which sets the surface if
     // already available.
-    register_displaychangelistener(&qs->dcl);
+    qemu_console_register_listener(
+        qemu_console_lookup_default(),
+        &qs->dcl,
+        &dcl_ops);
 
     qs->vchan = peer_server_init(qubesgui_domid, 6000);
     qemu_set_fd_handler(libvchan_fd_for_select(qs->vchan),
@@ -595,7 +598,9 @@ static void qubesgui_pv_display_init(DisplayState *ds, DisplayOptions *o)
                         qs);
     qubesgui_init_connection(qs);
 
-    qemu_add_led_event_handler(qubesgui_pv_kbd_led_event, qs);
+    qs->led_notifier.notify = qubesgui_pv_kbd_led_event;
+    qemu_input_led_notifier_add(&qs->led_notifier);
+    // TODO: qemu_input_led_notifier_remove(&qs->led_notifier);
 }
 
 static void qubesgui_init_connection(QubesGuiState * qs)
