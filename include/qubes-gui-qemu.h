@@ -25,5 +25,6 @@
 
 extern uint32_t qubesgui_domid;
 uint8_t *qubesgui_alloc_surface_data(int width, int height, uint32_t **refs);
+void qubesgui_free_image_data(pixman_image_t *image, void *opaque);
 
 #endif /* _QUBES_GUI_QEMU_H */

@@ -679,6 +679,19 @@ uint8_t *qubesgui_alloc_surface_data(int width, int height, uint32_t **refs) {
     return data;
 }
 
+void qubesgui_free_image_data(pixman_image_t *image, void *opaque) {
+    size_t pages;
+    void *data;
+    int width, height;
+
+    data = pixman_image_get_data(image);
+    width = pixman_image_get_width(image);
+    height = pixman_image_get_height(image);
+    pages = ((width * height * 4) + XC_PAGE_SIZE - 1) >> XC_PAGE_SHIFT;
+
+    xengntshr_unshare(xgs, data, pages);
+}
+
 static void qubesgui_display_early_init(DisplayOptions *opts) {
     assert(opts->type == DISPLAY_TYPE_QUBES_GUI);
     qubesgui_domid = opts->u.qubes_gui.domid;
